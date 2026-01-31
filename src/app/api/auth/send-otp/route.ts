@@ -30,9 +30,14 @@ export async function POST(request: Request) {
         const emailResult = await sendOTPEmail(email, code)
 
         if (!emailResult.success) {
+            console.error('Email failed, enabling Hackathon Mode. Error:', emailResult.error)
+            // HACKATHON FIX: If email fails (sandbox/dns), return success anyway 
+            // and send the code back to the client so the user can still log in.
             return NextResponse.json({
-                error: `Email Dispatch Failed: ${emailResult.error || 'Unknown error'}`
-            }, { status: 500 })
+                success: true,
+                message: 'Hackathon Mode: Email failed, but code generated.',
+                debugCode: code // 🚨 EXPOSING CODE TO CLIENT FOR DEMO 🚨
+            })
         }
 
         return NextResponse.json({ success: true, message: 'Code dispatched successfully' })

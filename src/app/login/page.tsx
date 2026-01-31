@@ -47,7 +47,11 @@ export default function LoginPage() {
     }
 
     setStep('otp')
-    setMessage('Access code dispatched to your MSU Outlook.')
+    if (data.debugCode) {
+      setMessage(`Hackathon Mode Code: ${data.debugCode}`)
+    } else {
+      setMessage('Access code dispatched to your MSU Outlook.')
+    }
     setLoading(false)
   }
 
