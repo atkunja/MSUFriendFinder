@@ -46,8 +46,8 @@ export default function RequestsPage() {
 
     // Get all unique user IDs to fetch profiles
     const userIds = [
-      ...(incoming?.map((r) => r.from_user) || []),
-      ...(sent?.map((r) => r.to_user) || []),
+      ...(incoming?.map((r: FriendRequest) => r.from_user) || []),
+      ...(sent?.map((r: FriendRequest) => r.to_user) || []),
     ]
 
     const { data: profiles } = await supabase
@@ -55,20 +55,20 @@ export default function RequestsPage() {
       .select('*')
       .in('id', userIds)
 
-    const profileMap = new Map(profiles?.map((p) => [p.id, p]) || [])
+    const profileMap = new Map(profiles?.map((p: Profile) => [p.id, p]) || [])
 
     setIncomingRequests(
-      (incoming || []).map((r) => ({
+      (incoming || []).map((r: FriendRequest) => ({
         ...r,
         profile: profileMap.get(r.from_user)!,
-      })).filter((r) => r.profile)
+      })).filter((r: RequestWithProfile) => r.profile)
     )
 
     setSentRequests(
-      (sent || []).map((r) => ({
+      (sent || []).map((r: FriendRequest) => ({
         ...r,
         profile: profileMap.get(r.to_user)!,
-      })).filter((r) => r.profile)
+      })).filter((r: RequestWithProfile) => r.profile)
     )
 
     setLoading(false)
