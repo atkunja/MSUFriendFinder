@@ -27,7 +27,7 @@ async function sendViaResend(email: string, code: string) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                from: 'Spartan Finder <onboarding@resend.dev>', // Resend default for unverified domains
+                from: 'Spartan Finder <noreply@msuconnect.org>',
                 to: email,
                 subject: 'Your Spartan Finder Access Code',
                 html: `
