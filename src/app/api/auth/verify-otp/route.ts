@@ -52,22 +52,27 @@ export async function POST(request: Request) {
             authUser = existingUser
         }
 
-        // 4. Generate a session token for the user
-        // Since we verified the OTP ourselves, we can create a magic link or just return the user
-        // The cleanest way to log them in from the server is to generate a magic link and return that,
-        // or use admin-level sign-in if available.
-        // For Supabase, the best way to bridge a custom OTP to a session is 'generateLink'
-
+        // 4. Generate a magic link for the user
+        const origin = new URL(request.url).origin
         const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
             type: 'magiclink',
             email: email,
+            options: {
+                redirectTo: `${origin}/discover`
+            }
         })
 
         if (linkError) throw linkError
 
+        // Ensure the action_link uses the correct domain if Supabase is misconfigured
+        let redirectUrl = linkData.properties.action_link
+        if (redirectUrl.includes('localhost:3000')) {
+            redirectUrl = redirectUrl.replace('http://localhost:3000', origin)
+        }
+
         return NextResponse.json({
             success: true,
-            redirectUrl: linkData.properties.action_link
+            redirectUrl
         })
 
     } catch (error: any) {
