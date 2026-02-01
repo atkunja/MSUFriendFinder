@@ -57,7 +57,7 @@ export async function POST(request: Request) {
             type: 'magiclink',
             email: email,
             options: {
-                redirectTo: `${origin}/discover`
+                redirectTo: `${origin}/auth/callback`
             }
         })
 
