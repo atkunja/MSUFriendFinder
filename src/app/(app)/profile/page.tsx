@@ -60,6 +60,12 @@ export default function MyProfilePage() {
   const [photos, setPhotos] = useState<ProfilePhoto[]>([])
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const galleryInputRef = useRef<HTMLInputElement>(null)
+  const [showDangerZone, setShowDangerZone] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deletingPosts, setDeletingPosts] = useState(false)
+  const [deletingPhotos, setDeletingPhotos] = useState(false)
 
   useEffect(() => {
     fetchProfile()
@@ -344,6 +350,80 @@ export default function MyProfilePage() {
       document.body.removeChild(textArea)
       setShowCopied(true)
       setTimeout(() => setShowCopied(false), 2000)
+    }
+  }
+
+  const deleteAllPosts = async () => {
+    if (!profile) return
+    if (!confirm('Delete all your posts? This cannot be undone.')) return
+
+    setDeletingPosts(true)
+    const { error } = await supabase
+      .from('spontaneous_posts')
+      .delete()
+      .eq('user_id', profile.id)
+
+    if (!error) {
+      setSuccess('All posts deleted')
+      setTimeout(() => setSuccess(''), 2000)
+    } else {
+      setError('Failed to delete posts')
+    }
+    setDeletingPosts(false)
+  }
+
+  const deleteAllPhotos = async () => {
+    if (!profile) return
+    if (!confirm('Delete all your gallery photos? This cannot be undone.')) return
+
+    setDeletingPhotos(true)
+    const { error } = await supabase
+      .from('profile_photos')
+      .delete()
+      .eq('user_id', profile.id)
+
+    if (!error) {
+      setPhotos([])
+      setSuccess('All photos deleted')
+      setTimeout(() => setSuccess(''), 2000)
+    } else {
+      setError('Failed to delete photos')
+    }
+    setDeletingPhotos(false)
+  }
+
+  const deleteAccount = async () => {
+    if (!profile || deleteConfirmText !== 'DELETE') return
+
+    setDeleting(true)
+    setError('')
+
+    try {
+      // Delete profile photos from storage
+      const { data: storageFiles } = await supabase.storage
+        .from('avatars')
+        .list(profile.id)
+
+      if (storageFiles && storageFiles.length > 0) {
+        const filePaths = storageFiles.map(f => `${profile.id}/${f.name}`)
+        await supabase.storage.from('avatars').remove(filePaths)
+      }
+
+      // Delete user data (cascades should handle related tables)
+      const { error: deleteError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', profile.id)
+
+      if (deleteError) throw deleteError
+
+      // Sign out
+      await supabase.auth.signOut()
+      router.push('/')
+    } catch (err) {
+      console.error('Delete error:', err)
+      setError('Failed to delete account. Please try again.')
+      setDeleting(false)
     }
   }
 
@@ -656,6 +736,129 @@ export default function MyProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Danger Zone Section */}
+      <div className="mt-8 animate-fade-in">
+        <button
+          onClick={() => setShowDangerZone(!showDangerZone)}
+          className="w-full flex items-center justify-between p-4 rounded-2xl bg-red-50/50 border border-red-100 text-red-600 hover:bg-red-50 transition-colors"
+        >
+          <span className="font-bold text-sm flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Danger Zone
+          </span>
+          <svg className={`w-5 h-5 transition-transform ${showDangerZone ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {showDangerZone && (
+          <div className="mt-4 p-6 rounded-2xl bg-red-50/30 border border-red-100 space-y-4 animate-fade-in">
+            <p className="text-sm text-red-600 font-medium">
+              These actions are permanent and cannot be undone. Please proceed with caution.
+            </p>
+
+            <div className="space-y-3">
+              {/* Delete all posts */}
+              <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-red-100">
+                <div>
+                  <h4 className="font-bold text-gray-900 text-sm">Delete All Posts</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">Remove all your feed posts permanently</p>
+                </div>
+                <button
+                  onClick={deleteAllPosts}
+                  disabled={deletingPosts}
+                  className="px-4 py-2 rounded-lg bg-red-100 text-red-600 text-xs font-bold hover:bg-red-200 transition-colors disabled:opacity-50"
+                >
+                  {deletingPosts ? 'Deleting...' : 'Delete Posts'}
+                </button>
+              </div>
+
+              {/* Delete all photos */}
+              <div className="flex items-center justify-between p-4 bg-white rounded-xl border border-red-100">
+                <div>
+                  <h4 className="font-bold text-gray-900 text-sm">Delete All Gallery Photos</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">Remove all photos from your gallery</p>
+                </div>
+                <button
+                  onClick={deleteAllPhotos}
+                  disabled={deletingPhotos}
+                  className="px-4 py-2 rounded-lg bg-red-100 text-red-600 text-xs font-bold hover:bg-red-200 transition-colors disabled:opacity-50"
+                >
+                  {deletingPhotos ? 'Deleting...' : 'Delete Photos'}
+                </button>
+              </div>
+
+              {/* Delete account */}
+              <div className="flex items-center justify-between p-4 bg-red-100/50 rounded-xl border border-red-200">
+                <div>
+                  <h4 className="font-bold text-red-700 text-sm">Delete Account</h4>
+                  <p className="text-xs text-red-600 mt-0.5">Permanently delete your entire account and all data</p>
+                </div>
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition-colors"
+                >
+                  Delete Account
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="bg-white rounded-3xl max-w-md w-full p-8 animate-fade-in-scale" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-black text-gray-900">Delete Your Account?</h2>
+              <p className="text-sm text-gray-500 mt-2">
+                This will permanently delete your profile, all posts, photos, messages, friendships, and all associated data. This action cannot be undone.
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                Type DELETE to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="input-prestige !border-red-200 focus:!border-red-400"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false)
+                  setDeleteConfirmText('')
+                }}
+                className="flex-1 py-3 rounded-xl font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteAccount}
+                disabled={deleteConfirmText !== 'DELETE' || deleting}
+                className="flex-1 py-3 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? 'Deleting...' : 'Delete Forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Image Cropper Modal */}
       {showCropper && rawImageSrc && (

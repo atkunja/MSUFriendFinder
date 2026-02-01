@@ -77,6 +77,7 @@ export default function EventsPage() {
     event_type: 'social' as EventType,
   })
   const [error, setError] = useState<string | null>(null)
+  const [deletingEvent, setDeletingEvent] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -200,6 +201,26 @@ export default function EventsPage() {
     }
 
     fetchData()
+  }
+
+  const deleteEvent = async (eventId: string) => {
+    if (!confirm('Delete this event? This cannot be undone.')) return
+
+    setDeletingEvent(eventId)
+    setError(null)
+
+    const { error: deleteError } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', eventId)
+      .eq('creator_id', currentUser?.id)
+
+    if (deleteError) {
+      setError(`Failed to delete: ${deleteError.message}`)
+    } else {
+      setEvents(events.filter(e => e.id !== eventId))
+    }
+    setDeletingEvent(null)
   }
 
   const formatDate = (dateString: string) => {
@@ -512,6 +533,25 @@ export default function EventsPage() {
                               {status === 'going' ? '✓ Going' : status === 'interested' ? '♡ Interested' : '? Maybe'}
                             </button>
                           ))}
+
+                          {/* Delete button for own events */}
+                          {currentUser && event.creator_id === currentUser.id && (
+                            <button
+                              onClick={() => deleteEvent(event.id)}
+                              disabled={deletingEvent === event.id}
+                              className="px-3 py-2 rounded-xl text-xs font-bold text-red-500 bg-red-50 border border-red-100
+                                       hover:bg-red-100 transition-all disabled:opacity-50"
+                              title="Delete event"
+                            >
+                              {deletingEvent === event.id ? (
+                                <span className="w-4 h-4 border-2 border-red-300 border-t-red-500 rounded-full animate-spin inline-block" />
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
