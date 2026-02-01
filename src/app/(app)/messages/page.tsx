@@ -268,14 +268,18 @@ export default function MessagesPage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        <div className="animate-pulse space-y-4">
+      <div className="max-w-2xl mx-auto px-4 py-12">
+        <div className="mb-10">
+          <div className="skeleton-text w-40 h-10 mb-2" />
+          <div className="skeleton-text-sm w-56" />
+        </div>
+        <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-4 p-4 bg-background-elevated rounded-2xl">
-              <div className="w-14 h-14 bg-foreground-subtle/30 rounded-full" />
+            <div key={i} className="card-prestige !p-4 flex items-center gap-4">
+              <div className="w-14 h-14 skeleton rounded-full" />
               <div className="flex-1">
-                <div className="h-4 bg-foreground-subtle/30 rounded w-1/3 mb-2" />
-                <div className="h-3 bg-foreground-subtle/30 rounded w-2/3" />
+                <div className="skeleton-text w-1/3 mb-2" />
+                <div className="skeleton-text-sm w-2/3" />
               </div>
             </div>
           ))}
@@ -284,34 +288,58 @@ export default function MessagesPage() {
     )
   }
 
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-8 relative">
-      {/* Background accents */}
-      <div className="absolute top-0 right-0 w-64 h-64 bg-msu-green/5 blur-[100px] rounded-full -z-10" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-msu-accent/5 blur-[120px] rounded-full -z-10" />
+  // Calculate total unread
+  const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
 
-      <div className="flex justify-between items-end mb-8 animate-fade-in">
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-12 relative">
+      {/* Grain Overlay */}
+      <div className="grain-overlay" />
+
+      {/* Background accents */}
+      <div className="absolute top-0 right-0 w-80 h-80 bg-msu-green/5 blur-[120px] rounded-full -z-10" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-gold/5 blur-[150px] rounded-full -z-10" />
+
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-10 animate-fade-in">
         <div>
-          <h1 className="text-4xl font-black text-foreground tracking-tight">Messages</h1>
-          <p className="text-foreground-muted font-bold text-sm mt-1">Chat with your Spartan friends</p>
+          <h1 className="text-display text-3xl md:text-4xl text-foreground tracking-tight">
+            <span className="text-gradient-primary">Messages</span>
+          </h1>
+          <p className="text-body-sm mt-2">
+            {totalUnread > 0 ? (
+              <>
+                <span className="font-mono font-semibold text-msu-green">{totalUnread}</span> unread message{totalUnread !== 1 ? 's' : ''}
+              </>
+            ) : (
+              'Chat with your Spartan friends'
+            )}
+          </p>
         </div>
         <button
           onClick={openCreateGroup}
-          className="btn-prestige !py-2 !px-4 !text-sm"
+          className="btn-prestige"
         >
-          + New Group
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          New Group
         </button>
       </div>
 
       {conversations.length === 0 ? (
-        <div className="card-prestige text-center py-16 animate-fade-in">
-          <span className="text-6xl block mb-4">💬</span>
-          <h3 className="text-xl font-black text-foreground mb-2">No conversations yet</h3>
-          <p className="text-foreground-muted font-medium mb-6">
-            Start chatting with your friends!
+        <div className="card-prestige !bg-background-elevated/50 !border-dashed !border-2 text-center py-16 animate-fade-in">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-msu-green/5 flex items-center justify-center">
+            <span className="text-4xl">💬</span>
+          </div>
+          <h3 className="text-heading text-xl mb-2 text-foreground">No Conversations Yet</h3>
+          <p className="text-body-sm max-w-sm mx-auto mb-6">
+            Connect with friends to start chatting. Your conversations will appear here.
           </p>
-          <Link href="/friends" className="btn-prestige inline-block">
-            View Friends
+          <Link href="/friends" className="btn-prestige !px-8">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+            </svg>
+            Start Chatting
           </Link>
         </div>
       ) : (

@@ -44,6 +44,29 @@ export default function ChatPage() {
     scrollToBottom()
   }, [messages])
 
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
+
+  const showNotification = (title: string, body: string, avatar?: string | null) => {
+    if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+      const notification = new Notification(title, {
+        body,
+        icon: avatar || '/icon.png',
+        badge: '/icon.png',
+        tag: conversationId,
+      })
+
+      notification.onclick = () => {
+        window.focus()
+        notification.close()
+      }
+    }
+  }
+
   const fetchChatData = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
@@ -52,22 +75,12 @@ export default function ChatPage() {
     }
     setCurrentUserId(user.id)
 
-    // Debug: Check what conversations the user can see
-    const { data: allConvs, error: allConvsError } = await supabase
-      .from('conversations')
-      .select('id, participant_a, participant_b, is_group')
-    console.log('User can see these conversations:', allConvs, 'Error:', allConvsError)
-
     // Fetch conversation
-    console.log('Fetching conversation:', conversationId, 'for user:', user.id)
-
     const { data: convData, error: convError } = await supabase
       .from('conversations')
       .select('*')
       .eq('id', conversationId)
       .maybeSingle()
-
-    console.log('Conversation result:', { convData, convError })
 
     if (convError) {
       console.error('Conversation error:', convError)
@@ -77,7 +90,6 @@ export default function ChatPage() {
     }
 
     if (!convData) {
-      console.error('No conversation data - RLS may be blocking access')
       setError('Conversation not found or you do not have access')
       setLoading(false)
       return
@@ -185,12 +197,22 @@ export default function ChatPage() {
             return [...prev, newMsg]
           })
 
-          // Mark as read if from other user
+          // Show notification for messages from others
           if (newMsg.sender_id !== currentUserId) {
-            supabase
-              .from('messages')
-              .update({ read_at: new Date().toISOString() })
-              .eq('id', newMsg.id)
+            const sender = participants.find(p => p.id === newMsg.sender_id)
+            showNotification(
+              sender?.full_name || displayName,
+              newMsg.content,
+              sender?.avatar_url || displayAvatar
+            )
+
+            // Mark as read if window is focused
+            if (!document.hidden) {
+              supabase
+                .from('messages')
+                .update({ read_at: new Date().toISOString() })
+                .eq('id', newMsg.id)
+            }
           }
         }
       )
@@ -199,7 +221,7 @@ export default function ChatPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [conversationId, currentUserId])
+  }, [conversationId, currentUserId, participants, displayName, displayAvatar])
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -240,17 +262,17 @@ export default function ChatPage() {
 
   if (loading && !error) {
     return (
-      <div className="flex flex-col h-[calc(100vh-80px)]">
-        <div className="p-4 border-b border-gray-100 bg-white">
+      <div className="flex flex-col h-[calc(100vh-80px)] bg-background">
+        <div className="p-4 border-b border-glass-border bg-background-elevated/80 backdrop-blur-lg">
           <div className="animate-pulse flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-200 rounded-full" />
-            <div className="h-4 bg-gray-200 rounded w-32" />
+            <div className="w-10 h-10 bg-foreground-subtle/20 rounded-full" />
+            <div className="h-4 bg-foreground-subtle/20 rounded w-32" />
           </div>
         </div>
         <div className="flex-1 p-4 space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className={`animate-pulse flex ${i % 2 === 0 ? 'justify-end' : ''}`}>
-              <div className={`h-12 ${i % 2 === 0 ? 'bg-msu-green/20' : 'bg-gray-200'} rounded-2xl w-48`} />
+              <div className={`h-12 ${i % 2 === 0 ? 'bg-msu-green/20' : 'bg-foreground-subtle/10'} rounded-2xl w-48`} />
             </div>
           ))}
         </div>
@@ -260,9 +282,9 @@ export default function ChatPage() {
 
   if (error && !conversation) {
     return (
-      <div className="flex flex-col h-[calc(100vh-80px)]">
-        <div className="p-4 border-b border-gray-100 bg-white">
-          <Link href="/messages" className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
+      <div className="flex flex-col h-[calc(100vh-80px)] bg-background">
+        <div className="p-4 border-b border-glass-border bg-background-elevated">
+          <Link href="/messages" className="flex items-center gap-2 text-foreground-muted hover:text-foreground transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -271,6 +293,11 @@ export default function ChatPage() {
         </div>
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
+              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
             <p className="text-red-500 font-medium mb-4">{error}</p>
             <Link href="/messages" className="btn-prestige">
               Go to Messages
@@ -282,18 +309,18 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)]">
+    <div className="flex flex-col h-[calc(100vh-80px)] bg-background">
       {/* Chat Header */}
-      <div className="p-4 border-b border-gray-100 bg-white/80 backdrop-blur-lg sticky top-0 z-10">
+      <div className="p-4 border-b border-glass-border bg-background-elevated/80 backdrop-blur-lg sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <Link href="/messages" className="text-gray-400 hover:text-gray-600 transition-colors">
+          <Link href="/messages" className="text-foreground-subtle hover:text-foreground transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
           <div className="flex items-center gap-3 flex-1">
             {conversation?.is_group ? (
-              <div className="w-10 h-10 rounded-full bg-msu-green/10 flex items-center justify-center">
+              <div className="w-11 h-11 rounded-full bg-msu-green/10 flex items-center justify-center border-2 border-background shadow-md">
                 {displayAvatar ? (
                   <img src={displayAvatar} alt="" className="w-full h-full object-cover rounded-full" />
                 ) : (
@@ -302,22 +329,25 @@ export default function ChatPage() {
               </div>
             ) : participants[0] ? (
               <Link href={`/profile/${participants[0].id}`} className="group">
-                <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden">
-                  {displayAvatar ? (
-                    <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-lg flex items-center justify-center h-full">👤</span>
-                  )}
+                <div className="relative">
+                  <div className="w-11 h-11 rounded-full bg-background-elevated overflow-hidden border-2 border-background shadow-md group-hover:border-msu-green/30 transition-colors">
+                    {displayAvatar ? (
+                      <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-lg flex items-center justify-center h-full">👤</span>
+                    )}
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-background-elevated rounded-full" />
                 </div>
               </Link>
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+              <div className="w-11 h-11 rounded-full bg-background-elevated flex items-center justify-center border-2 border-background shadow-md">
                 <span className="text-lg">👤</span>
               </div>
             )}
-            <div>
-              <h2 className="font-bold text-gray-900">{displayName}</h2>
-              <p className="text-xs text-gray-500">
+            <div className="flex-1 min-w-0">
+              <h2 className="font-bold text-foreground truncate">{displayName}</h2>
+              <p className="text-xs text-foreground-subtle">
                 {conversation?.is_group
                   ? `${participants.length} members`
                   : participants[0]?.major || 'MSU Student'}
@@ -328,13 +358,16 @@ export default function ChatPage() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/50">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-background-elevated/30 to-background">
         {messages.length === 0 ? (
-          <div className="text-center py-12">
-            <span className="text-4xl block mb-3">👋</span>
-            <p className="text-gray-500 font-medium">
+          <div className="text-center py-16">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-msu-green/10 flex items-center justify-center">
+              <span className="text-3xl">👋</span>
+            </div>
+            <h3 className="font-bold text-foreground mb-1">Start the conversation</h3>
+            <p className="text-foreground-muted text-sm">
               {conversation?.is_group
-                ? 'Start the group conversation!'
+                ? 'Send a message to the group!'
                 : `Say hi to ${displayName.split(' ')[0]}!`}
             </p>
           </div>
@@ -358,29 +391,39 @@ export default function ChatPage() {
       </div>
 
       {/* Message Input */}
-      <div className="p-4 border-t border-gray-100 bg-white">
+      <div className="p-4 border-t border-glass-border bg-background-elevated">
         {error && (
-          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-medium">
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-medium flex items-center gap-2">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             {error}
           </div>
         )}
         <form onSubmit={sendMessage} className="flex items-center gap-3">
-          <input
-            ref={inputRef}
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type a message..."
-            className="flex-1 px-4 py-3 rounded-full bg-gray-100 border-0 focus:ring-2 focus:ring-msu-green/30 focus:bg-white transition-all font-medium"
-            disabled={sending}
-          />
+          <div className="flex-1 relative">
+            <input
+              ref={inputRef}
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type a message..."
+              className="w-full px-5 py-3.5 rounded-full bg-background border border-glass-border
+                       text-foreground placeholder:text-foreground-subtle
+                       focus:outline-none focus:ring-2 focus:ring-msu-green/30 focus:border-msu-green/50
+                       transition-all font-medium"
+              disabled={sending}
+            />
+          </div>
           <button
             type="submit"
             disabled={!newMessage.trim() || sending}
-            className="w-12 h-12 rounded-full bg-msu-gradient text-white flex items-center justify-center disabled:opacity-50 hover:opacity-90 transition-opacity shadow-lg"
+            className="w-12 h-12 rounded-full bg-msu-gradient text-white flex items-center justify-center
+                     disabled:opacity-40 hover:opacity-90 transition-all shadow-lg hover:shadow-xl
+                     hover:scale-105 active:scale-95"
           >
             {sending ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
