@@ -45,33 +45,33 @@ function useCountUp(target: number, duration: number = 2000, delay: number = 0) 
 // Sample student profiles for preview
 const SAMPLE_STUDENTS = [
   {
-    name: 'Alaina N.',
-    major: 'Business',
-    year: "'26",
+    name: 'Ayush K.',
+    major: 'Computer Engineering',
+    year: "'29",
     status: 'Committed',
-    location: 'From Detroit',
-    tags: ['Rushing', 'Fitness'],
-    bio: "Hi! My name's Alaina and I'm from metro Detroit. Super excited to meet fellow Spartans!",
+    location: 'From Plymouth',
+    tags: ['Wrestling', 'Chess'],
+    bio: "Hi! My name's Ayush and I'm from Plymouth. Super excited to meet fellow Spartans!",
     gradient: 'from-emerald-400 to-teal-500',
   },
   {
-    name: 'Marcus T.',
-    major: 'Engineering',
-    year: "'27",
+    name: 'Rohan G.',
+    major: 'Computer Science',
+    year: "'28",
     status: 'Committed',
-    location: 'From Chicago',
-    tags: ['Gaming', 'Night Owl'],
-    bio: "Yo, I'm Marcus and I'm from Chicago. Looking for study partners and gaming buddies.",
+    location: 'From Canton',
+    tags: ['Gaming', 'BJJ'],
+    bio: "Yo, I'm Rohan and I'm from Canton. Looking for study partners and gaming buddies.",
     gradient: 'from-blue-400 to-indigo-500',
   },
   {
-    name: 'Priya M.',
-    major: 'Biology',
+    name: 'Ashmit Y.',
+    major: 'Computer Science',
     year: "'28",
     status: 'Committed',
-    location: 'From Ohio',
-    tags: ['Pre-Med', 'Hiking'],
-    bio: "Hey everyone, my name is Priya and I am from Cleveland, OH. I'll be living in...",
+    location: 'From Canton',
+    tags: ['MMA', 'Food Lover'],
+    bio: "Hey everyone, my name is Ashmit and I am from Canton, MI. I'll be living in Cedar Village",
     gradient: 'from-purple-400 to-pink-500',
   },
 ]
@@ -95,7 +95,7 @@ export default function LandingPage() {
   }, [handleMouseMove])
 
   // Stats counter
-  const memberCount = useCountUp(4892, 2500, 800)
+  const memberCount = useCountUp(48, 25, 10)
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -116,7 +116,7 @@ export default function LandingPage() {
           style={{
             background: 'radial-gradient(circle, rgba(24, 69, 59, 0.25) 0%, transparent 70%)',
             filter: 'blur(60px)',
-            animation: 'pulse-glow 4s ease-in-out infinite',
+            animation: 'pulseGlow 4s ease-in-out infinite',
           }}
         />
         {/* Secondary Orb */}
@@ -125,24 +125,24 @@ export default function LandingPage() {
           style={{
             background: 'radial-gradient(circle, rgba(61, 107, 94, 0.2) 0%, transparent 70%)',
             filter: 'blur(80px)',
-            animation: 'pulse-glow 5s ease-in-out infinite',
+            animation: 'pulseGlow 5s ease-in-out infinite',
             animationDelay: '1s',
           }}
         />
-        {/* Accent Orb */}
+        {/* Gold Accent Orb */}
         <div
           className="absolute top-[30%] left-[50%] w-[500px] h-[500px] rounded-full"
           style={{
-            background: 'radial-gradient(circle, rgba(201, 169, 98, 0.1) 0%, transparent 60%)',
+            background: 'radial-gradient(circle, rgba(201, 169, 98, 0.08) 0%, transparent 60%)',
             filter: 'blur(60px)',
             animation: 'floatSlow 8s ease-in-out infinite',
           }}
         />
       </div>
 
-      {/* Animated Grid Pattern */}
+      {/* Subtle Grid Pattern */}
       <div
-        className="absolute inset-0 pointer-events-none opacity-[0.03]"
+        className="absolute inset-0 pointer-events-none opacity-[0.02]"
         style={{
           backgroundImage: `
             linear-gradient(rgba(24, 69, 59, 0.5) 1px, transparent 1px),
@@ -176,89 +176,97 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <main ref={heroRef} className="relative z-10 px-6 md:px-12 pt-12 md:pt-16 pb-16 max-w-7xl mx-auto">
+      {/* Hero Section with MSU Logo Animation */}
+      <main ref={heroRef} className="relative z-10 px-6 md:px-12 pt-8 md:pt-12 pb-16 max-w-7xl mx-auto">
         <div className="flex flex-col items-center text-center">
 
-          {/* Animated Ring Behind Badge */}
-          <div className="relative mb-8 animate-fade-in">
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{
-                background: 'conic-gradient(from 0deg, #18453B, #3D6B5E, #C9A962, #18453B)',
-                filter: 'blur(20px)',
-                opacity: 0.3,
-                animation: 'rotate 8s linear infinite',
-              }}
-            />
-            <div className="relative inline-flex items-center gap-3 glass-panel !border-msu-green/20 px-5 py-2.5 rounded-full">
-              <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-msu-green opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-msu-green"></span>
+
+
+          {/* Badge */}
+          <div
+            className="mb-6"
+            style={{
+              animation: 'fadeSlideUp 0.6s ease-out 1.5s forwards',
+              opacity: 0,
+            }}
+          >
+            <div className="inline-flex items-center gap-2 glass-panel !border-msu-green/15 px-4 py-2 rounded-full">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-msu-green opacity-60"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-msu-green"></span>
               </span>
-              <span className="text-label text-msu-green">
-                Free Friend & Roommate Finder
+              <span className="text-xs font-semibold uppercase tracking-wider text-msu-green">
+                Michigan State University
               </span>
             </div>
           </div>
 
-          {/* Main Heading with Animated Underline */}
-          <div className="relative mb-6">
-            <h1 className="text-display-xl text-foreground animate-fade-in reveal-delay-1">
-              Easily Find Your{' '}
-              <span className="relative inline-block text-gradient-primary">
-                Spartans
-                {/* Animated underline */}
-                <span
-                  className="absolute -bottom-2 left-0 h-1 bg-gradient-to-r from-msu-green to-msu-green-light rounded-full"
-                  style={{
-                    animation: 'expandWidth 1s ease-out 0.8s forwards',
-                    width: '0%',
-                  }}
-                />
-              </span>
-            </h1>
-          </div>
+          {/* Main Heading */}
+          <h1
+            className="text-display-xl text-foreground mb-6"
+            style={{
+              animation: 'fadeSlideUp 0.8s ease-out 1.7s forwards',
+              opacity: 0,
+            }}
+          >
+            Find Your{' '}
+            <span className="text-gradient-primary">Spartans</span>
+          </h1>
 
           {/* Subheading */}
-          <p className="text-subheading max-w-2xl mb-8 animate-fade-in reveal-delay-2">
-            We understand the importance of finding the right students to share your college journey with.
-            Connect with future classmates before you even step on campus.
+          <p
+            className="text-subheading max-w-xl mb-10"
+            style={{
+              animation: 'fadeSlideUp 0.8s ease-out 1.9s forwards',
+              opacity: 0,
+            }}
+          >
+            Connect with future classmates, find roommates, and build your Spartan community before you arrive on campus.
           </p>
 
-          {/* Stats Row */}
-          <div className="flex items-center justify-center gap-8 mb-10 animate-fade-in reveal-delay-3">
-            <div className="flex items-center gap-3">
-              <div className="flex -space-x-2">
-                {['🧑‍🎓', '👩‍🎓', '👨‍🎓', '👩‍💻'].map((emoji, i) => (
-                  <div
-                    key={i}
-                    className="w-8 h-8 rounded-full bg-msu-green/10 flex items-center justify-center border-2 border-background text-sm"
-                  >
-                    {emoji}
-                  </div>
-                ))}
-              </div>
-              <p className="text-sm text-foreground-muted">
-                <span className="font-mono font-bold text-msu-green">{memberCount.toLocaleString()}+</span> Spartans joined
-              </p>
+          {/* Stats */}
+          <div
+            className="flex items-center justify-center gap-3 mb-10"
+            style={{
+              animation: 'fadeSlideUp 0.8s ease-out 2.1s forwards',
+              opacity: 0,
+            }}
+          >
+            <div className="flex -space-x-2">
+              {['🧑‍🎓', '👩‍🎓', '👨‍🎓', '👩‍💻'].map((emoji, i) => (
+                <div
+                  key={i}
+                  className="w-8 h-8 rounded-full bg-msu-green/10 flex items-center justify-center border-2 border-background text-sm"
+                >
+                  {emoji}
+                </div>
+              ))}
             </div>
+            <p className="text-sm text-foreground-muted">
+              <span className="font-mono font-bold text-msu-green">{memberCount.toLocaleString()}+</span> Spartans joined
+            </p>
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-4 mb-20 animate-fade-in reveal-delay-4">
+          <div
+            className="flex flex-col sm:flex-row items-center gap-4 mb-16"
+            style={{
+              animation: 'fadeSlideUp 0.8s ease-out 2.3s forwards',
+              opacity: 0,
+            }}
+          >
             <Link href="/signup" className="btn-prestige !px-10 !py-4 text-base shadow-xl group">
-              View Community
+              Join the Community
               <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
             </Link>
             <Link href="/login" className="btn-secondary-prestige !px-8 !py-4 text-base">
-              I Have an Account
+              Sign In
             </Link>
           </div>
 
-          {/* Student Profile Preview Cards */}
+          {/* Student Profile Preview Cards with Animated Border */}
           <div className="w-full max-w-5xl">
             <p className="text-label text-center mb-8 animate-fade-in reveal-delay-4">
               Meet Your Future Friends
@@ -268,71 +276,83 @@ export default function LandingPage() {
               {SAMPLE_STUDENTS.map((student, index) => (
                 <div
                   key={student.name}
-                  className="card-profile !p-0 overflow-hidden group"
+                  className="relative group"
                   style={{
                     animation: `slideUp 0.6s ease-out ${0.5 + index * 0.15}s forwards`,
                     opacity: 0,
                   }}
                 >
-                  {/* Profile Image with Gradient */}
-                  <div className={`relative h-44 bg-gradient-to-br ${student.gradient} flex items-center justify-center overflow-hidden`}>
-                    {/* Animated circles */}
-                    <div className="absolute inset-0 overflow-hidden">
-                      <div
-                        className="absolute w-32 h-32 rounded-full bg-white/10 -top-10 -left-10"
-                        style={{ animation: 'float 6s ease-in-out infinite' }}
-                      />
-                      <div
-                        className="absolute w-24 h-24 rounded-full bg-white/10 bottom-5 right-5"
-                        style={{ animation: 'float 5s ease-in-out infinite', animationDelay: '1s' }}
-                      />
+                  {/* Animated gradient border */}
+                  <div
+                    className="absolute -inset-[1px] rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                    style={{
+                      background: 'linear-gradient(135deg, #18453B, #3D6B5E, #C9A962, #18453B)',
+                      backgroundSize: '300% 300%',
+                      animation: 'gradientShift 4s ease infinite',
+                    }}
+                  />
+
+                  <div className="relative card-profile !p-0 overflow-hidden">
+                    {/* Profile Image with Gradient */}
+                    <div className={`relative h-44 bg-gradient-to-br ${student.gradient} flex items-center justify-center overflow-hidden`}>
+                      {/* Animated circles */}
+                      <div className="absolute inset-0 overflow-hidden">
+                        <div
+                          className="absolute w-32 h-32 rounded-full bg-white/10 -top-10 -left-10"
+                          style={{ animation: 'float 6s ease-in-out infinite' }}
+                        />
+                        <div
+                          className="absolute w-24 h-24 rounded-full bg-white/10 bottom-5 right-5"
+                          style={{ animation: 'float 5s ease-in-out infinite', animationDelay: '1s' }}
+                        />
+                      </div>
+
+                      {/* Avatar with glow on hover */}
+                      <div className="relative w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-4xl shadow-lg group-hover:scale-110 group-hover:shadow-2xl transition-all duration-500">
+                        👤
+                      </div>
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-background-elevated via-transparent to-transparent" />
                     </div>
 
-                    {/* Avatar */}
-                    <div className="relative w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-4xl shadow-lg group-hover:scale-110 transition-transform duration-500">
-                      👤
-                    </div>
-
-                    <div className="absolute inset-0 bg-gradient-to-t from-background-elevated via-transparent to-transparent" />
-                  </div>
-
-                  {/* Profile Info */}
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-display text-lg font-semibold text-foreground">
-                        {student.name}
-                      </h3>
-                      <span className="flex items-center gap-1 text-xs font-medium text-msu-green bg-msu-green/10 px-2 py-0.5 rounded-full">
-                        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        {student.status}
-                      </span>
-                    </div>
-
-                    <p className="text-body-sm text-sm mb-3">
-                      🎓 {student.major} {student.year}
-                    </p>
-
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-2 mb-3">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600">
-                        📍 {student.location}
-                      </span>
-                      {student.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-msu-green/10 text-msu-green"
-                        >
-                          {tag}
+                    {/* Profile Info */}
+                    <div className="p-5">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="font-display text-lg font-semibold text-foreground">
+                          {student.name}
+                        </h3>
+                        <span className="flex items-center gap-1 text-xs font-medium text-msu-green bg-msu-green/10 px-2 py-0.5 rounded-full">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          {student.status}
                         </span>
-                      ))}
-                    </div>
+                      </div>
 
-                    {/* Bio */}
-                    <p className="text-body-sm text-sm line-clamp-2">
-                      {student.bio}
-                    </p>
+                      <p className="text-body-sm text-sm mb-3">
+                        🎓 {student.major} {student.year}
+                      </p>
+
+                      {/* Tags */}
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-600">
+                          📍 {student.location}
+                        </span>
+                        {student.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-msu-green/10 text-msu-green"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Bio */}
+                      <p className="text-body-sm text-sm line-clamp-2">
+                        {student.bio}
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -374,31 +394,32 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* Additional Animation Keyframes */}
+      {/* Animation Keyframes */}
       <style jsx>{`
-        @keyframes expandWidth {
-          from { width: 0%; }
-          to { width: 100%; }
-        }
-        @keyframes rotate {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes float {
-          0%, 100% { transform: translateY(0) rotate(0deg); }
-          50% { transform: translateY(-10px) rotate(5deg); }
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.05); }
         }
         @keyframes floatSlow {
           0%, 100% { transform: translate(0, 0); }
           50% { transform: translate(-20px, -30px); }
         }
-        @keyframes pulse-glow {
-          0%, 100% { opacity: 0.5; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(1.05); }
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-10px) rotate(5deg); }
         }
         @keyframes slideUp {
           from { opacity: 0; transform: translateY(30px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
         }
       `}</style>
     </div>
