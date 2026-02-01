@@ -52,16 +52,34 @@ export default function ChatPage() {
     }
     setCurrentUserId(user.id)
 
+    // Debug: Check what conversations the user can see
+    const { data: allConvs, error: allConvsError } = await supabase
+      .from('conversations')
+      .select('id, participant_a, participant_b, is_group')
+    console.log('User can see these conversations:', allConvs, 'Error:', allConvsError)
+
     // Fetch conversation
+    console.log('Fetching conversation:', conversationId, 'for user:', user.id)
+
     const { data: convData, error: convError } = await supabase
       .from('conversations')
       .select('*')
       .eq('id', conversationId)
-      .single()
+      .maybeSingle()
 
-    if (convError || !convData) {
-      console.error('Conversation not found')
-      router.push('/messages')
+    console.log('Conversation result:', { convData, convError })
+
+    if (convError) {
+      console.error('Conversation error:', convError)
+      setError(`Database error: ${convError.message}`)
+      setLoading(false)
+      return
+    }
+
+    if (!convData) {
+      console.error('No conversation data - RLS may be blocking access')
+      setError('Conversation not found or you do not have access')
+      setLoading(false)
       return
     }
 
@@ -220,7 +238,7 @@ export default function ChatPage() {
     return participants.find(p => p.id === senderId)
   }
 
-  if (loading) {
+  if (loading && !error) {
     return (
       <div className="flex flex-col h-[calc(100vh-80px)]">
         <div className="p-4 border-b border-gray-100 bg-white">
@@ -235,6 +253,29 @@ export default function ChatPage() {
               <div className={`h-12 ${i % 2 === 0 ? 'bg-msu-green/20' : 'bg-gray-200'} rounded-2xl w-48`} />
             </div>
           ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error && !conversation) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-80px)]">
+        <div className="p-4 border-b border-gray-100 bg-white">
+          <Link href="/messages" className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Messages
+          </Link>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="text-center">
+            <p className="text-red-500 font-medium mb-4">{error}</p>
+            <Link href="/messages" className="btn-prestige">
+              Go to Messages
+            </Link>
+          </div>
         </div>
       </div>
     )

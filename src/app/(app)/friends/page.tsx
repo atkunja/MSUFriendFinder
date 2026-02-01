@@ -75,8 +75,8 @@ export default function FriendsPage() {
       }
 
       if (conversationId) {
-        // Use window.location for more robust navigation
-        window.location.href = `/messages/${conversationId}`
+        // Navigate using Next.js router
+        router.push(`/messages/${conversationId}`)
       } else {
         setError('Failed to create conversation - no ID returned')
         setStartingChat(null)
