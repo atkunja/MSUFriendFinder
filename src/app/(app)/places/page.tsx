@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile, Location, Review, LocationType } from '@/types/database'
 
@@ -425,16 +426,20 @@ export default function PlacesPage() {
                     {selectedLocation.reviews.map((review) => (
                       <div key={review.id} className="bg-background rounded-2xl p-4 border border-glass-border">
                         <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-full bg-background-elevated overflow-hidden flex-shrink-0 border border-glass-border">
-                            {review.user.avatar_url ? (
-                              <img src={review.user.avatar_url} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="text-sm flex items-center justify-center h-full">👤</span>
-                            )}
-                          </div>
+                          <Link href={`/profile/${review.user.id}`} className="flex-shrink-0 group">
+                            <div className="w-10 h-10 rounded-full bg-background-elevated overflow-hidden border border-glass-border group-hover:border-msu-green/50 transition-colors">
+                              {review.user.avatar_url ? (
+                                <img src={review.user.avatar_url} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-sm flex items-center justify-center h-full">👤</span>
+                              )}
+                            </div>
+                          </Link>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
-                              <p className="font-semibold text-sm text-foreground">{review.user.full_name}</p>
+                              <Link href={`/profile/${review.user.id}`} className="font-semibold text-sm text-foreground hover:text-msu-green transition-colors">
+                                {review.user.full_name}
+                              </Link>
                               <StarRating rating={review.rating} size="sm" />
                             </div>
                             {review.title && (
