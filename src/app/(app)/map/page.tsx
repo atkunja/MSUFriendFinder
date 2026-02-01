@@ -86,6 +86,7 @@ export default function MapPage() {
   const [showReviewForm, setShowReviewForm] = useState(false)
   const [newReview, setNewReview] = useState({ rating: 5, title: '', content: '' })
   const [submitting, setSubmitting] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const supabase = createClient()
 
   useEffect(() => {
@@ -166,8 +167,12 @@ export default function MapPage() {
     setSubmitting(false)
   }
 
-  const filteredLocations =
-    filter === 'all' ? locations : locations.filter((l) => l.location_type === filter)
+  // Filter by type and search query
+  const filteredLocations = locations.filter((l) => {
+    const matchesFilter = filter === 'all' || l.location_type === filter
+    const matchesSearch = !searchQuery || l.name.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesFilter && matchesSearch
+  })
 
   if (loading) {
     return (
@@ -198,6 +203,35 @@ export default function MapPage() {
             <p className="text-sm text-foreground-muted mt-1">
               Explore and rate MSU locations
             </p>
+
+            {/* Search Bar */}
+            <div className="relative mt-4">
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground-subtle"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search buildings, dining, dorms..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-background border border-glass-border text-foreground placeholder:text-foreground-subtle text-sm focus:outline-none focus:ring-2 focus:ring-msu-green/30 focus:border-msu-green/50 transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-foreground-subtle hover:text-foreground"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Filters */}
@@ -478,6 +512,7 @@ export default function MapPage() {
           onLocationSelect={setSelectedLocation}
           selectedLocation={selectedLocation}
           currentUser={currentUser}
+          searchQuery={searchQuery}
         />
       </div>
     </div>
