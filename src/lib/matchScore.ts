@@ -7,17 +7,18 @@ interface MatchResult {
 
 export function calculateMatchScore(
   currentUser: Profile,
-  otherUser: Profile
+  otherUser: Profile,
+  sharedClasses?: string[]
 ): MatchResult {
   let score = 0
   const reasons: string[] = []
 
-  // Shared interests: +10 per match, cap at 50
+  // Shared interests: +8 per match, cap at 40
   const sharedInterests = currentUser.interests.filter((i) =>
     otherUser.interests.includes(i)
   )
   if (sharedInterests.length > 0) {
-    const interestScore = Math.min(sharedInterests.length * 10, 50)
+    const interestScore = Math.min(sharedInterests.length * 8, 40)
     score += interestScore
     if (sharedInterests.length <= 3) {
       reasons.push(`Shared interests: ${sharedInterests.join(', ')}`)
@@ -44,12 +45,12 @@ export function calculateMatchScore(
     reasons.push(`Same year: ${otherUser.year}`)
   }
 
-  // Shared "looking for": +10 per match, cap at 20
+  // Shared "looking for": +8 per match, cap at 16
   const sharedLookingFor = currentUser.looking_for.filter((l) =>
     otherUser.looking_for.includes(l)
   )
   if (sharedLookingFor.length > 0) {
-    const lookingForScore = Math.min(sharedLookingFor.length * 10, 20)
+    const lookingForScore = Math.min(sharedLookingFor.length * 8, 16)
     score += lookingForScore
     reasons.push(`Both looking for: ${sharedLookingFor.join(', ')}`)
   }
@@ -64,11 +65,46 @@ export function calculateMatchScore(
     reasons.push(`Same area: ${otherUser.campus_area}`)
   }
 
-  // Normalize to percentage (max possible: 50 + 15 + 10 + 20 + 5 = 100)
+  // Same dorm: +10
+  if (
+    currentUser.dorm &&
+    otherUser.dorm &&
+    currentUser.dorm === otherUser.dorm
+  ) {
+    score += 10
+    reasons.push(`Same dorm: ${otherUser.dorm}`)
+  }
+
+  // Shared classes: +12 per class, cap at 24
+  if (sharedClasses && sharedClasses.length > 0) {
+    const classScore = Math.min(sharedClasses.length * 12, 24)
+    score += classScore
+    reasons.push(`${sharedClasses.length} shared class${sharedClasses.length > 1 ? 'es' : ''}`)
+  }
+
+  // Normalize to percentage (max: 40 + 15 + 10 + 16 + 5 + 10 + 24 = 120, cap at 100)
   const normalizedScore = Math.min(score, 100)
 
   return {
     score: normalizedScore,
     reasons,
   }
+}
+
+// Helper to calculate distance between two coordinates in miles
+export function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 3959 // Earth's radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLon = (lon2 - lon1) * Math.PI / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
 }

@@ -21,6 +21,7 @@ export default function ProfilePage() {
   const [sending, setSending] = useState(false)
   const [relationshipStatus, setRelationshipStatus] = useState<'none' | 'friends' | 'sent' | 'received'>('none')
   const [matchScore, setMatchScore] = useState<{ score: number; reasons: string[] } | null>(null)
+  const [showCopied, setShowCopied] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -133,6 +134,43 @@ export default function ProfilePage() {
     setSending(false)
   }
 
+  const shareProfile = async () => {
+    const profileUrl = `${window.location.origin}/profile/${profileId}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${profile?.full_name} on SpartanFinder`,
+          text: `Check out ${profile?.full_name}'s profile on SpartanFinder!`,
+          url: profileUrl,
+        })
+      } catch {
+        // User cancelled or share failed, fall back to copy
+        copyToClipboard(profileUrl)
+      }
+    } else {
+      copyToClipboard(profileUrl)
+    }
+  }
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setShowCopied(true)
+      setTimeout(() => setShowCopied(false), 2000)
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setShowCopied(true)
+      setTimeout(() => setShowCopied(false), 2000)
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-8">
@@ -153,12 +191,28 @@ export default function ProfilePage() {
       <div className="absolute top-0 right-0 w-64 h-64 bg-msu-green/5 blur-[100px] rounded-full -z-10" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-msu-accent/5 blur-[120px] rounded-full -z-10" />
 
-      <Link
-        href="/discover"
-        className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-msu-green mb-8 transition-colors group"
-      >
-        <span className="group-hover:-translate-x-1 transition-transform">←</span> Return to Discovery
-      </Link>
+      <div className="flex justify-between items-center mb-8">
+        <Link
+          href="/discover"
+          className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-msu-green transition-colors group"
+        >
+          <span className="group-hover:-translate-x-1 transition-transform">←</span> Return to Discovery
+        </Link>
+        <button
+          onClick={shareProfile}
+          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-widest text-gray-500 hover:text-msu-green bg-white rounded-xl border border-gray-200 hover:border-msu-green/30 transition-all shadow-sm hover:shadow-md"
+        >
+          {showCopied ? (
+            <>
+              <span className="text-green-500">✓</span> Link Copied!
+            </>
+          ) : (
+            <>
+              <span>↗</span> Share Profile
+            </>
+          )}
+        </button>
+      </div>
 
       <div className="card-prestige !p-0 overflow-hidden shadow-2xl">
         {/* Profile Header */}

@@ -17,9 +17,12 @@ export default function Navbar() {
 
   const navItems = [
     { href: '/discover', label: 'Discover' },
-    { href: '/requests', label: 'Requests' },
-    { href: '/friends', label: 'Friends' },
+    { href: '/feed', label: 'Feed' },
+    { href: '/events', label: 'Events' },
     { href: '/messages', label: 'Messages' },
+    { href: '/friends', label: 'Friends' },
+    { href: '/classes', label: 'Classes' },
+    { href: '/places', label: 'Places' },
   ]
 
   return (

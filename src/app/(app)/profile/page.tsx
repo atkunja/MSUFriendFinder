@@ -55,6 +55,7 @@ export default function MyProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [showCropper, setShowCropper] = useState(false)
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null)
+  const [showCopied, setShowCopied] = useState(false)
 
   useEffect(() => {
     fetchProfile()
@@ -211,6 +212,42 @@ export default function MyProfilePage() {
     }
   }
 
+  const shareProfile = async () => {
+    if (!profile) return
+    const profileUrl = `${window.location.origin}/profile/${profile.id}`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${profile.full_name} on SpartanFinder`,
+          text: `Check out my profile on SpartanFinder!`,
+          url: profileUrl,
+        })
+      } catch {
+        copyToClipboard(profileUrl)
+      }
+    } else {
+      copyToClipboard(profileUrl)
+    }
+  }
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setShowCopied(true)
+      setTimeout(() => setShowCopied(false), 2000)
+    } catch {
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setShowCopied(true)
+      setTimeout(() => setShowCopied(false), 2000)
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-8">
@@ -249,12 +286,20 @@ export default function MyProfilePage() {
           <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
           <div className="absolute top-6 right-8">
             {!editing ? (
-              <button
-                onClick={() => setEditing(true)}
-                className="btn-prestige !bg-white/20 !backdrop-blur-lg !border-white/30 hover:!bg-white/30 shadow-none !py-2 !px-4 !text-sm !text-white"
-              >
-                Edit Profile
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={shareProfile}
+                  className="btn-prestige !bg-white/20 !backdrop-blur-lg !border-white/30 hover:!bg-white/30 shadow-none !py-2 !px-4 !text-sm !text-white"
+                >
+                  {showCopied ? '✓ Copied!' : '↗ Share'}
+                </button>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="btn-prestige !bg-white/20 !backdrop-blur-lg !border-white/30 hover:!bg-white/30 shadow-none !py-2 !px-4 !text-sm !text-white"
+                >
+                  Edit Profile
+                </button>
+              </div>
             ) : (
               <div className="flex gap-3">
                 <button
