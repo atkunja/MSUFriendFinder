@@ -5,9 +5,10 @@ interface MessageBubbleProps {
   isOwn: boolean
   senderAvatar?: string
   senderName?: string
+  showSenderName?: boolean
 }
 
-export default function MessageBubble({ message, isOwn, senderAvatar, senderName }: MessageBubbleProps) {
+export default function MessageBubble({ message, isOwn, senderAvatar, senderName, showSenderName }: MessageBubbleProps) {
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -24,17 +25,24 @@ export default function MessageBubble({ message, isOwn, senderAvatar, senderName
           )}
         </div>
       )}
-      <div
-        className={`max-w-[70%] px-4 py-3 ${
-          isOwn
-            ? 'bg-msu-gradient text-white rounded-2xl rounded-br-md'
-            : 'bg-white text-gray-800 rounded-2xl rounded-bl-md shadow-sm border border-gray-100'
-        }`}
-      >
-        <p className="text-sm font-medium break-words whitespace-pre-wrap">{message.content}</p>
-        <span className={`text-[10px] mt-1 block ${isOwn ? 'text-white/60' : 'text-gray-400'}`}>
-          {formatTime(message.created_at)}
-        </span>
+      <div className="flex flex-col max-w-[70%]">
+        {showSenderName && senderName && (
+          <span className="text-xs font-bold text-gray-500 mb-1 ml-1">
+            {senderName.split(' ')[0]}
+          </span>
+        )}
+        <div
+          className={`px-4 py-3 ${
+            isOwn
+              ? 'bg-msu-gradient text-white rounded-2xl rounded-br-md'
+              : 'bg-white text-gray-800 rounded-2xl rounded-bl-md shadow-sm border border-gray-100'
+          }`}
+        >
+          <p className="text-sm font-medium break-words whitespace-pre-wrap">{message.content}</p>
+          <span className={`text-[10px] mt-1 block ${isOwn ? 'text-white/60' : 'text-gray-400'}`}>
+            {formatTime(message.created_at)}
+          </span>
+        </div>
       </div>
     </div>
   )

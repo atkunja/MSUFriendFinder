@@ -207,22 +207,38 @@ create policy "Members can view their groups" on public.conversation_members
     )
   );
 
+-- Allow members to be added (via security definer functions)
 drop policy if exists "Admins can add members" on public.conversation_members;
-create policy "Admins can add members" on public.conversation_members
-  for insert to authenticated with check (
-    exists (
-      select 1 from conversation_members cm
-      where cm.conversation_id = conversation_id
-      and cm.user_id = auth.uid()
-      and cm.role = 'admin'
-    )
-    or not exists (select 1 from conversation_members where conversation_id = conversation_members.conversation_id)
-  );
+create policy "Members can be added" on public.conversation_members
+  for insert to authenticated with check (true);
+
+-- Allow members to leave (delete themselves)
+drop policy if exists "Members can leave" on public.conversation_members;
+create policy "Members can leave" on public.conversation_members
+  for delete using (user_id = auth.uid());
 
 -- Update conversations policy for groups
 drop policy if exists "Users see own conversations" on public.conversations;
 create policy "Users see own conversations" on public.conversations
   for select using (
+    auth.uid() in (participant_a, participant_b)
+    or exists (
+      select 1 from conversation_members
+      where conversation_id = id and user_id = auth.uid()
+    )
+  );
+
+-- Allow users to create conversations
+drop policy if exists "Users can create conversations" on public.conversations;
+create policy "Users can create conversations" on public.conversations
+  for insert to authenticated with check (
+    auth.uid() in (participant_a, participant_b)
+  );
+
+-- Allow conversation update (for updated_at)
+drop policy if exists "Users can update own conversations" on public.conversations;
+create policy "Users can update own conversations" on public.conversations
+  for update using (
     auth.uid() in (participant_a, participant_b)
     or exists (
       select 1 from conversation_members
@@ -238,6 +254,7 @@ create or replace function create_group_chat(
 returns uuid language plpgsql security definer as $$
 declare
   v_conv_id uuid;
+  v_member_id uuid;
 begin
   -- Create conversation
   insert into conversations (is_group, group_name, created_by, participant_a, participant_b)
@@ -249,14 +266,62 @@ begin
   values (v_conv_id, auth.uid(), 'admin');
 
   -- Add other members
-  insert into conversation_members (conversation_id, user_id, role)
-  select v_conv_id, unnest(p_member_ids), 'member'
-  where unnest(p_member_ids) != auth.uid();
+  foreach v_member_id in array p_member_ids loop
+    if v_member_id != auth.uid() then
+      insert into conversation_members (conversation_id, user_id, role)
+      values (v_conv_id, v_member_id, 'member')
+      on conflict (conversation_id, user_id) do nothing;
+    end if;
+  end loop;
 
   return v_conv_id;
 end; $$;
 
 grant execute on function create_group_chat(text, uuid[]) to authenticated;
+
+-- Update message policies to support group chats
+drop policy if exists "Users see conversation messages" on public.messages;
+create policy "Users see conversation messages" on public.messages
+  for select using (
+    exists (select 1 from conversations c
+            where c.id = conversation_id
+            and (
+              auth.uid() in (c.participant_a, c.participant_b)
+              or exists (
+                select 1 from conversation_members cm
+                where cm.conversation_id = c.id and cm.user_id = auth.uid()
+              )
+            ))
+  );
+
+drop policy if exists "Users send messages" on public.messages;
+create policy "Users send messages" on public.messages
+  for insert with check (
+    auth.uid() = sender_id and
+    exists (select 1 from conversations c
+            where c.id = conversation_id
+            and (
+              auth.uid() in (c.participant_a, c.participant_b)
+              or exists (
+                select 1 from conversation_members cm
+                where cm.conversation_id = c.id and cm.user_id = auth.uid()
+              )
+            ))
+  );
+
+drop policy if exists "Users update messages" on public.messages;
+create policy "Users update messages" on public.messages
+  for update using (
+    exists (select 1 from conversations c
+            where c.id = conversation_id
+            and (
+              auth.uid() in (c.participant_a, c.participant_b)
+              or exists (
+                select 1 from conversation_members cm
+                where cm.conversation_id = c.id and cm.user_id = auth.uid()
+              )
+            ))
+  );
 
 -- =====================
 -- 6. REVIEWS SYSTEM

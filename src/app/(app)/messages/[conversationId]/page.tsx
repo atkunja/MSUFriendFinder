@@ -7,7 +7,11 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import MessageBubble from '@/components/MessageBubble'
-import type { Profile, Message } from '@/types/database'
+import type { Profile, Message, Conversation } from '@/types/database'
+
+interface MessageWithSender extends Message {
+  sender?: Profile
+}
 
 export default function ChatPage() {
   const params = useParams()
@@ -15,12 +19,15 @@ export default function ChatPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  const [messages, setMessages] = useState<Message[]>([])
-  const [otherUser, setOtherUser] = useState<Profile | null>(null)
+  const [messages, setMessages] = useState<MessageWithSender[]>([])
+  const [conversation, setConversation] = useState<Conversation | null>(null)
+  const [participants, setParticipants] = useState<Profile[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [displayName, setDisplayName] = useState('')
+  const [displayAvatar, setDisplayAvatar] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -44,7 +51,7 @@ export default function ChatPage() {
     }
     setCurrentUserId(user.id)
 
-    // Fetch conversation to verify access
+    // Fetch conversation
     const { data: convData, error: convError } = await supabase
       .from('conversations')
       .select('*')
@@ -57,21 +64,67 @@ export default function ChatPage() {
       return
     }
 
-    // Verify user is a participant
-    if (convData.participant_a !== user.id && convData.participant_b !== user.id) {
-      router.push('/messages')
-      return
+    setConversation(convData)
+
+    // Check user access and get participants
+    if (convData.is_group) {
+      // Group chat - check membership
+      const { data: membership } = await supabase
+        .from('conversation_members')
+        .select('user_id')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', user.id)
+        .single()
+
+      if (!membership) {
+        router.push('/messages')
+        return
+      }
+
+      // Get all group members
+      const { data: allMembers } = await supabase
+        .from('conversation_members')
+        .select('user_id')
+        .eq('conversation_id', conversationId)
+
+      if (allMembers) {
+        const memberIds = allMembers.map(m => m.user_id)
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .in('id', memberIds)
+
+        setParticipants(profiles || [])
+
+        // Set display name
+        if (convData.group_name) {
+          setDisplayName(convData.group_name)
+        } else {
+          const otherMembers = (profiles || []).filter(p => p.id !== user.id)
+          setDisplayName(otherMembers.slice(0, 3).map(p => p.full_name.split(' ')[0]).join(', '))
+        }
+        setDisplayAvatar(convData.group_avatar_url)
+      }
+    } else {
+      // 1-on-1 chat - verify participant
+      if (convData.participant_a !== user.id && convData.participant_b !== user.id) {
+        router.push('/messages')
+        return
+      }
+
+      const otherUserId = convData.participant_a === user.id ? convData.participant_b : convData.participant_a
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', otherUserId)
+        .single()
+
+      if (profileData) {
+        setParticipants([profileData])
+        setDisplayName(profileData.full_name)
+        setDisplayAvatar(profileData.avatar_url)
+      }
     }
-
-    // Get other user's profile
-    const otherUserId = convData.participant_a === user.id ? convData.participant_b : convData.participant_a
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', otherUserId)
-      .single()
-
-    setOtherUser(profileData as Profile)
 
     // Fetch messages
     const { data: messagesData } = await supabase
@@ -109,7 +162,6 @@ export default function ChatPage() {
         (payload) => {
           const newMsg = payload.new as Message
           setMessages((prev) => {
-            // Avoid duplicates
             if (prev.some(m => m.id === newMsg.id)) return prev
             return [...prev, newMsg]
           })
@@ -146,7 +198,7 @@ export default function ChatPage() {
 
     if (error) {
       console.error('Error sending message:', error)
-      setNewMessage(messageContent) // Restore message on error
+      setNewMessage(messageContent)
     }
 
     // Update conversation updated_at
@@ -157,6 +209,10 @@ export default function ChatPage() {
 
     setSending(false)
     inputRef.current?.focus()
+  }
+
+  const getSenderInfo = (senderId: string) => {
+    return participants.find(p => p.id === senderId)
   }
 
   if (loading) {
@@ -189,25 +245,39 @@ export default function ChatPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <Link href={`/profile/${otherUser?.id}`} className="flex items-center gap-3 flex-1 group">
-            <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden">
-              {otherUser?.avatar_url ? (
-                <img
-                  src={otherUser.avatar_url}
-                  alt={otherUser.full_name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <span className="text-lg flex items-center justify-center h-full">👤</span>
-              )}
-            </div>
+          <div className="flex items-center gap-3 flex-1">
+            {conversation?.is_group ? (
+              <div className="w-10 h-10 rounded-full bg-msu-green/10 flex items-center justify-center">
+                {displayAvatar ? (
+                  <img src={displayAvatar} alt="" className="w-full h-full object-cover rounded-full" />
+                ) : (
+                  <span className="text-lg">👥</span>
+                )}
+              </div>
+            ) : participants[0] ? (
+              <Link href={`/profile/${participants[0].id}`} className="group">
+                <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden">
+                  {displayAvatar ? (
+                    <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-lg flex items-center justify-center h-full">👤</span>
+                  )}
+                </div>
+              </Link>
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+                <span className="text-lg">👤</span>
+              </div>
+            )}
             <div>
-              <h2 className="font-bold text-gray-900 group-hover:text-msu-green transition-colors">
-                {otherUser?.full_name}
-              </h2>
-              <p className="text-xs text-gray-500">{otherUser?.major || 'MSU Student'}</p>
+              <h2 className="font-bold text-gray-900">{displayName}</h2>
+              <p className="text-xs text-gray-500">
+                {conversation?.is_group
+                  ? `${participants.length} members`
+                  : participants[0]?.major || 'MSU Student'}
+              </p>
             </div>
-          </Link>
+          </div>
         </div>
       </div>
 
@@ -216,18 +286,27 @@ export default function ChatPage() {
         {messages.length === 0 ? (
           <div className="text-center py-12">
             <span className="text-4xl block mb-3">👋</span>
-            <p className="text-gray-500 font-medium">Say hi to {otherUser?.full_name?.split(' ')[0]}!</p>
+            <p className="text-gray-500 font-medium">
+              {conversation?.is_group
+                ? 'Start the group conversation!'
+                : `Say hi to ${displayName.split(' ')[0]}!`}
+            </p>
           </div>
         ) : (
-          messages.map((message) => (
-            <MessageBubble
-              key={message.id}
-              message={message}
-              isOwn={message.sender_id === currentUserId}
-              senderAvatar={message.sender_id !== currentUserId ? otherUser?.avatar_url || undefined : undefined}
-              senderName={message.sender_id !== currentUserId ? otherUser?.full_name : undefined}
-            />
-          ))
+          messages.map((message) => {
+            const sender = getSenderInfo(message.sender_id)
+            const isOwn = message.sender_id === currentUserId
+            return (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                isOwn={isOwn}
+                senderAvatar={!isOwn ? sender?.avatar_url || undefined : undefined}
+                senderName={!isOwn && conversation?.is_group ? sender?.full_name : undefined}
+                showSenderName={conversation?.is_group && !isOwn}
+              />
+            )
+          })
         )}
         <div ref={messagesEndRef} />
       </div>

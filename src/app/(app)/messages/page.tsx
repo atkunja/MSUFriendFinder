@@ -10,7 +10,9 @@ import type { Profile, Conversation, Message } from '@/types/database'
 
 interface ConversationWithDetails {
   conversation: Conversation
-  otherUser: Profile
+  displayName: string
+  displayAvatar: string | null
+  participants: Profile[]
   lastMessage: Message | null
   unreadCount: number
 }
@@ -19,6 +21,11 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<ConversationWithDetails[]>([])
   const [loading, setLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [friends, setFriends] = useState<Profile[]>([])
+  const [selectedFriends, setSelectedFriends] = useState<string[]>([])
+  const [groupName, setGroupName] = useState('')
+  const [creating, setCreating] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -34,30 +41,84 @@ export default function MessagesPage() {
     }
     setCurrentUserId(user.id)
 
-    // Fetch all conversations for this user
-    const { data: convData, error: convError } = await supabase
+    // Fetch 1-on-1 conversations (where user is participant_a or participant_b)
+    const { data: directConvData } = await supabase
       .from('conversations')
       .select('*')
+      .eq('is_group', false)
       .or(`participant_a.eq.${user.id},participant_b.eq.${user.id}`)
       .order('updated_at', { ascending: false })
 
-    if (convError || !convData) {
-      console.error('Error fetching conversations:', convError)
-      setLoading(false)
-      return
+    // Fetch group conversations (where user is a member)
+    const { data: membershipData } = await supabase
+      .from('conversation_members')
+      .select('conversation_id')
+      .eq('user_id', user.id)
+
+    const groupConvIds = membershipData?.map(m => m.conversation_id) || []
+
+    let groupConvData: Conversation[] = []
+    if (groupConvIds.length > 0) {
+      const { data } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('is_group', true)
+        .in('id', groupConvIds)
+        .order('updated_at', { ascending: false })
+      groupConvData = data || []
     }
 
-    // For each conversation, fetch the other user's profile and last message
-    const conversationsWithDetails: ConversationWithDetails[] = await Promise.all(
-      convData.map(async (conv) => {
-        const otherUserId = conv.participant_a === user.id ? conv.participant_b : conv.participant_a
+    const allConvs = [...(directConvData || []), ...groupConvData]
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
 
-        // Fetch other user's profile
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', otherUserId)
-          .single()
+    // Build conversation details
+    const conversationsWithDetails: ConversationWithDetails[] = await Promise.all(
+      allConvs.map(async (conv) => {
+        let displayName = ''
+        let displayAvatar: string | null = null
+        let participants: Profile[] = []
+
+        if (conv.is_group) {
+          // Group chat - fetch all members
+          displayName = conv.group_name || 'Group Chat'
+          displayAvatar = conv.group_avatar_url
+
+          const { data: members } = await supabase
+            .from('conversation_members')
+            .select('user_id')
+            .eq('conversation_id', conv.id)
+
+          if (members && members.length > 0) {
+            const memberIds = members.map(m => m.user_id).filter(id => id !== user.id)
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('*')
+              .in('id', memberIds)
+            participants = profiles || []
+
+            // If no group name, use participant names
+            if (!conv.group_name && participants.length > 0) {
+              displayName = participants.slice(0, 3).map(p => p.full_name.split(' ')[0]).join(', ')
+              if (participants.length > 3) {
+                displayName += ` +${participants.length - 3}`
+              }
+            }
+          }
+        } else {
+          // 1-on-1 chat
+          const otherUserId = conv.participant_a === user.id ? conv.participant_b : conv.participant_a
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', otherUserId)
+            .single()
+
+          if (profileData) {
+            displayName = profileData.full_name
+            displayAvatar = profileData.avatar_url
+            participants = [profileData]
+          }
+        }
 
         // Fetch last message
         const { data: messageData } = await supabase
@@ -78,7 +139,9 @@ export default function MessagesPage() {
 
         return {
           conversation: conv,
-          otherUser: profileData as Profile,
+          displayName,
+          displayAvatar,
+          participants,
           lastMessage: messageData as Message | null,
           unreadCount: count || 0,
         }
@@ -87,6 +150,68 @@ export default function MessagesPage() {
 
     setConversations(conversationsWithDetails)
     setLoading(false)
+  }
+
+  const fetchFriends = async () => {
+    if (!currentUserId) return
+
+    // Fetch friendships
+    const { data: friendshipsA } = await supabase
+      .from('friendships')
+      .select('user_b')
+      .eq('user_a', currentUserId)
+
+    const { data: friendshipsB } = await supabase
+      .from('friendships')
+      .select('user_a')
+      .eq('user_b', currentUserId)
+
+    const friendIds = [
+      ...(friendshipsA?.map(f => f.user_b) || []),
+      ...(friendshipsB?.map(f => f.user_a) || []),
+    ]
+
+    if (friendIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', friendIds)
+
+      setFriends(profiles || [])
+    }
+  }
+
+  const openCreateGroup = () => {
+    setShowCreateGroup(true)
+    fetchFriends()
+  }
+
+  const toggleFriendSelection = (friendId: string) => {
+    setSelectedFriends(prev =>
+      prev.includes(friendId)
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId]
+    )
+  }
+
+  const createGroupChat = async () => {
+    if (selectedFriends.length < 2 || !currentUserId) return
+
+    setCreating(true)
+
+    const { data: conversationId, error } = await supabase.rpc('create_group_chat', {
+      p_name: groupName.trim() || null,
+      p_member_ids: selectedFriends,
+    })
+
+    if (!error && conversationId) {
+      setShowCreateGroup(false)
+      setSelectedFriends([])
+      setGroupName('')
+      router.push(`/messages/${conversationId}`)
+    }
+
+    setCreating(false)
   }
 
   // Subscribe to new messages
@@ -103,7 +228,6 @@ export default function MessagesPage() {
           table: 'messages',
         },
         () => {
-          // Refetch conversations when a new message arrives
           fetchConversations()
         }
       )
@@ -154,9 +278,17 @@ export default function MessagesPage() {
       <div className="absolute top-0 right-0 w-64 h-64 bg-msu-green/5 blur-[100px] rounded-full -z-10" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-msu-accent/5 blur-[120px] rounded-full -z-10" />
 
-      <div className="mb-8 animate-fade-in">
-        <h1 className="text-4xl font-black text-gray-900 tracking-tight">Messages</h1>
-        <p className="text-gray-500 font-bold text-sm mt-1">Chat with your Spartan friends</p>
+      <div className="flex justify-between items-end mb-8 animate-fade-in">
+        <div>
+          <h1 className="text-4xl font-black text-gray-900 tracking-tight">Messages</h1>
+          <p className="text-gray-500 font-bold text-sm mt-1">Chat with your Spartan friends</p>
+        </div>
+        <button
+          onClick={openCreateGroup}
+          className="btn-prestige !py-2 !px-4 !text-sm"
+        >
+          + New Group
+        </button>
       </div>
 
       {conversations.length === 0 ? (
@@ -172,7 +304,7 @@ export default function MessagesPage() {
         </div>
       ) : (
         <div className="space-y-3 animate-fade-in">
-          {conversations.map(({ conversation, otherUser, lastMessage, unreadCount }) => (
+          {conversations.map(({ conversation, displayName, displayAvatar, participants, lastMessage, unreadCount }) => (
             <Link
               key={conversation.id}
               href={`/messages/${conversation.id}`}
@@ -180,17 +312,27 @@ export default function MessagesPage() {
             >
               {/* Avatar */}
               <div className="relative">
-                <div className="w-14 h-14 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
-                  {otherUser?.avatar_url ? (
-                    <img
-                      src={otherUser.avatar_url}
-                      alt={otherUser.full_name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span className="text-2xl">👤</span>
-                  )}
-                </div>
+                {conversation.is_group ? (
+                  <div className="w-14 h-14 rounded-full bg-msu-green/10 flex items-center justify-center">
+                    {displayAvatar ? (
+                      <img src={displayAvatar} alt="" className="w-full h-full object-cover rounded-full" />
+                    ) : (
+                      <span className="text-2xl">👥</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-gray-100 overflow-hidden flex items-center justify-center">
+                    {displayAvatar ? (
+                      <img
+                        src={displayAvatar}
+                        alt={displayName}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-2xl">👤</span>
+                    )}
+                  </div>
+                )}
                 {unreadCount > 0 && (
                   <div className="absolute -top-1 -right-1 w-5 h-5 bg-msu-green rounded-full flex items-center justify-center">
                     <span className="text-white text-[10px] font-black">{unreadCount}</span>
@@ -201,9 +343,16 @@ export default function MessagesPage() {
               {/* Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className={`font-bold text-gray-900 truncate ${unreadCount > 0 ? 'font-black' : ''}`}>
-                    {otherUser?.full_name || 'Unknown User'}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className={`font-bold text-gray-900 truncate ${unreadCount > 0 ? 'font-black' : ''}`}>
+                      {displayName || 'Unknown'}
+                    </h3>
+                    {conversation.is_group && (
+                      <span className="text-xs font-bold text-msu-green bg-msu-green/10 px-2 py-0.5 rounded-full">
+                        Group
+                      </span>
+                    )}
+                  </div>
                   {lastMessage && (
                     <span className="text-xs text-gray-400 font-medium flex-shrink-0">
                       {formatTime(lastMessage.created_at)}
@@ -214,6 +363,10 @@ export default function MessagesPage() {
                   {lastMessage ? (
                     lastMessage.sender_id === currentUserId ? (
                       <span className="text-gray-400">You: </span>
+                    ) : conversation.is_group ? (
+                      <span className="text-gray-400">
+                        {participants.find(p => p.id === lastMessage.sender_id)?.full_name?.split(' ')[0]}:
+                      </span>
                     ) : null
                   ) : null}
                   {lastMessage?.content || 'Start the conversation!'}
@@ -228,6 +381,86 @@ export default function MessagesPage() {
               </div>
             </Link>
           ))}
+        </div>
+      )}
+
+      {/* Create Group Chat Modal */}
+      {showCreateGroup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCreateGroup(false)}>
+          <div className="bg-white rounded-3xl max-w-md w-full max-h-[80vh] overflow-hidden animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-black text-gray-900">Create Group Chat</h2>
+                <button
+                  onClick={() => setShowCreateGroup(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              <input
+                type="text"
+                value={groupName}
+                onChange={(e) => setGroupName(e.target.value)}
+                placeholder="Group name (optional)"
+                className="input-prestige mt-4"
+              />
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[50vh]">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4">
+                Select Friends ({selectedFriends.length} selected)
+              </h3>
+
+              {friends.length === 0 ? (
+                <p className="text-center text-gray-400 py-8">
+                  Add friends first to create a group chat!
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {friends.map((friend) => (
+                    <button
+                      key={friend.id}
+                      onClick={() => toggleFriendSelection(friend.id)}
+                      className={`w-full flex items-center gap-4 p-3 rounded-xl transition-colors ${
+                        selectedFriends.includes(friend.id)
+                          ? 'bg-msu-green/10 border-2 border-msu-green'
+                          : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex-shrink-0">
+                        {friend.avatar_url ? (
+                          <img src={friend.avatar_url} alt={friend.full_name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-lg flex items-center justify-center h-full">👤</span>
+                        )}
+                      </div>
+                      <div className="flex-1 text-left">
+                        <h4 className="font-bold text-gray-900">{friend.full_name}</h4>
+                        <p className="text-sm text-gray-500">{friend.major || 'MSU Student'}</p>
+                      </div>
+                      {selectedFriends.includes(friend.id) && (
+                        <span className="text-msu-green font-bold">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-100">
+              <button
+                onClick={createGroupChat}
+                disabled={selectedFriends.length < 2 || creating}
+                className="btn-prestige w-full disabled:opacity-50"
+              >
+                {creating ? 'Creating...' : `Create Group (${selectedFriends.length} members)`}
+              </button>
+              <p className="text-xs text-gray-400 text-center mt-2">
+                Select at least 2 friends to create a group
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
