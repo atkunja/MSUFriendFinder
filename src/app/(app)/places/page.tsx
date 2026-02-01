@@ -12,14 +12,72 @@ interface LocationWithReviews extends Location {
   reviewCount: number
 }
 
-const LOCATION_TYPES: { value: LocationType | 'all'; label: string; emoji: string }[] = [
-  { value: 'all', label: 'All', emoji: '🗺️' },
-  { value: 'dining', label: 'Dining', emoji: '🍽️' },
-  { value: 'library', label: 'Library', emoji: '📚' },
-  { value: 'gym', label: 'Gym', emoji: '💪' },
-  { value: 'building', label: 'Building', emoji: '🏛️' },
-  { value: 'dorm', label: 'Dorm', emoji: '🏠' },
+const LOCATION_TYPES: { value: LocationType | 'all'; label: string; emoji: string; gradient: string }[] = [
+  { value: 'all', label: 'All Places', emoji: '🗺️', gradient: 'from-msu-green to-msu-green-light' },
+  { value: 'dining', label: 'Dining', emoji: '🍽️', gradient: 'from-orange-500 to-amber-500' },
+  { value: 'library', label: 'Library', emoji: '📚', gradient: 'from-blue-500 to-indigo-500' },
+  { value: 'gym', label: 'Gym', emoji: '💪', gradient: 'from-red-500 to-rose-500' },
+  { value: 'building', label: 'Building', emoji: '🏛️', gradient: 'from-slate-500 to-gray-600' },
+  { value: 'dorm', label: 'Dorm', emoji: '🏠', gradient: 'from-green-500 to-emerald-500' },
 ]
+
+function PlaceCardSkeleton() {
+  return (
+    <div className="card-prestige !p-0 overflow-hidden">
+      <div className="h-24 skeleton rounded-b-none" />
+      <div className="p-5">
+        <div className="skeleton-text w-3/4 mb-2" />
+        <div className="skeleton-text-sm w-1/2 mb-3" />
+        <div className="flex gap-1">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="w-5 h-5 skeleton rounded" />
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StarRating({
+  rating,
+  interactive = false,
+  onChange,
+  size = 'md'
+}: {
+  rating: number
+  interactive?: boolean
+  onChange?: (r: number) => void
+  size?: 'sm' | 'md' | 'lg'
+}) {
+  const sizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-6 h-6',
+    lg: 'w-8 h-8'
+  }
+
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          onClick={() => interactive && onChange?.(star)}
+          disabled={!interactive}
+          className={`${sizeClasses[size]} ${interactive ? 'cursor-pointer hover:scale-125 transition-transform' : ''}`}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill={star <= rating ? '#F59E0B' : 'none'}
+            stroke={star <= rating ? '#F59E0B' : '#D1D5DB'}
+            strokeWidth={1.5}
+            className="w-full h-full"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+          </svg>
+        </button>
+      ))}
+    </div>
+  )
+}
 
 export default function PlacesPage() {
   const [locations, setLocations] = useState<LocationWithReviews[]>([])
@@ -34,6 +92,7 @@ export default function PlacesPage() {
 
   useEffect(() => {
     fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchData = async () => {
@@ -48,14 +107,12 @@ export default function PlacesPage() {
 
     setCurrentUser(profile)
 
-    // Fetch all locations
     const { data: locationsData } = await supabase
       .from('locations')
       .select('*')
       .order('name')
 
     if (locationsData) {
-      // Fetch all reviews with user profiles
       const { data: reviewsData } = await supabase
         .from('reviews')
         .select('*')
@@ -116,201 +173,283 @@ export default function PlacesPage() {
     setSubmitting(false)
   }
 
-  const renderStars = (rating: number, interactive = false, onChange?: (r: number) => void) => {
-    return (
-      <div className="flex gap-1">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            onClick={() => interactive && onChange?.(star)}
-            disabled={!interactive}
-            className={`text-xl ${interactive ? 'cursor-pointer hover:scale-110 transition-transform' : ''}`}
-          >
-            {star <= rating ? '⭐' : '☆'}
-          </button>
-        ))}
-      </div>
-    )
-  }
-
   const filteredLocations = filter === 'all'
     ? locations
     : locations.filter(l => l.location_type === filter)
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="animate-pulse grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 h-32" />
-          ))}
+      <div className="max-w-5xl mx-auto px-4 py-12">
+        <div className="mb-10">
+          <div className="skeleton-text w-56 h-10 mb-2" />
+          <div className="skeleton-text-sm w-72" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[1, 2, 3, 4, 5, 6].map((i) => <PlaceCardSkeleton key={i} />)}
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 relative">
-      <div className="absolute top-0 right-0 w-64 h-64 bg-msu-green/5 blur-[100px] rounded-full -z-10" />
+    <div className="max-w-5xl mx-auto px-4 py-12 relative">
+      {/* Grain Overlay */}
+      <div className="grain-overlay" />
 
-      <div className="mb-8 animate-fade-in">
-        <h1 className="text-4xl font-black text-gray-900 tracking-tight">Campus Places</h1>
-        <p className="text-gray-500 font-bold text-sm mt-1">Rate and review MSU locations</p>
+      {/* Background accents */}
+      <div className="absolute top-0 right-0 w-80 h-80 bg-gold/5 blur-[120px] rounded-full -z-10" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-msu-green/5 blur-[150px] rounded-full -z-10" />
+
+      {/* Header */}
+      <div className="mb-10 animate-fade-in">
+        <h1 className="text-display text-3xl md:text-4xl text-foreground tracking-tight">
+          Campus <span className="text-gradient-gold">Places</span>
+        </h1>
+        <p className="text-body-sm mt-2">
+          Discover and rate the best spots at MSU
+        </p>
       </div>
 
-      {/* Filters */}
-      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar animate-fade-in">
-        {LOCATION_TYPES.map((type) => (
-          <button
-            key={type.value}
-            onClick={() => setFilter(type.value)}
-            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${
-              filter === type.value
-                ? 'bg-msu-green text-white'
-                : 'bg-white text-gray-600 border border-gray-200'
-            }`}
-          >
-            {type.emoji} {type.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Locations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
-        {filteredLocations.map((location) => {
-          const typeInfo = LOCATION_TYPES.find(t => t.value === location.location_type)
+      {/* Filter Tabs */}
+      <div className="flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar animate-fade-in">
+        {LOCATION_TYPES.map((type) => {
+          const count = type.value === 'all' ? locations.length : locations.filter(l => l.location_type === type.value).length
           return (
-            <div
-              key={location.id}
-              onClick={() => setSelectedLocation(location)}
-              className="card-prestige !p-5 cursor-pointer hover:scale-[1.02] transition-transform"
+            <button
+              key={type.value}
+              onClick={() => setFilter(type.value)}
+              className={`px-5 py-2.5 rounded-xl font-semibold text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
+                filter === type.value
+                  ? `bg-gradient-to-r ${type.gradient} text-white shadow-lg`
+                  : 'bg-background-elevated text-foreground-muted border border-glass-border hover:border-glass-border-hover'
+              }`}
             >
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-msu-green/10 flex items-center justify-center text-2xl flex-shrink-0">
-                  {typeInfo?.emoji || '📍'}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-gray-900 truncate">{location.name}</h3>
-                  <p className="text-xs text-gray-500 capitalize">{location.location_type}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    {location.reviewCount > 0 ? (
-                      <>
-                        <span className="text-yellow-500">{'⭐'.repeat(Math.round(location.averageRating))}</span>
-                        <span className="text-sm font-bold text-gray-600">
-                          {location.averageRating.toFixed(1)}
-                        </span>
-                        <span className="text-xs text-gray-400">({location.reviewCount} reviews)</span>
-                      </>
-                    ) : (
-                      <span className="text-xs text-gray-400">No reviews yet</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+              <span>{type.emoji}</span>
+              {type.label}
+              <span className="text-xs opacity-70">({count})</span>
+            </button>
           )
         })}
       </div>
 
+      {/* Locations Grid */}
+      {filteredLocations.length === 0 ? (
+        <div className="card-prestige !bg-background-elevated/50 !border-dashed !border-2 text-center py-16 animate-fade-in">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gold/5 flex items-center justify-center">
+            <span className="text-4xl">📍</span>
+          </div>
+          <h3 className="text-heading text-xl mb-2 text-foreground">No Places Found</h3>
+          <p className="text-body-sm max-w-sm mx-auto">
+            No locations match this filter. Try selecting a different category.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredLocations.map((location, idx) => {
+            const typeInfo = LOCATION_TYPES.find(t => t.value === location.location_type)
+
+            return (
+              <div
+                key={location.id}
+                onClick={() => setSelectedLocation(location)}
+                className={`card-profile !p-0 cursor-pointer group animate-fade-in reveal-delay-${(idx % 3) + 1}`}
+              >
+                {/* Header gradient */}
+                <div className={`h-20 bg-gradient-to-r ${typeInfo?.gradient || 'from-msu-green to-msu-green-light'} relative overflow-hidden`}>
+                  <div className="absolute inset-0 bg-black/10" />
+                  <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-white/10 rounded-full blur-xl" />
+                  <div className="absolute top-3 right-3 text-3xl opacity-80">{typeInfo?.emoji}</div>
+                </div>
+
+                <div className="p-5">
+                  <h3 className="text-heading text-base text-foreground leading-tight group-hover:text-msu-green transition-colors">
+                    {location.name}
+                  </h3>
+                  <p className="text-label text-xs mt-1 capitalize">{location.location_type}</p>
+
+                  <div className="flex items-center justify-between mt-4">
+                    {location.reviewCount > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <StarRating rating={Math.round(location.averageRating)} size="sm" />
+                        <span className="text-sm font-bold text-foreground">{location.averageRating.toFixed(1)}</span>
+                      </div>
+                    ) : (
+                      <span className="text-body-sm text-xs">No reviews yet</span>
+                    )}
+                    <span className="text-label text-xs">{location.reviewCount} reviews</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
       {/* Location Detail Modal */}
       {selectedLocation && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-2xl font-black text-gray-900">{selectedLocation.name}</h2>
-                  <p className="text-sm text-gray-500 capitalize mt-1">{selectedLocation.location_type}</p>
-                  {selectedLocation.address && (
-                    <p className="text-xs text-gray-400 mt-1">📍 {selectedLocation.address}</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => { setSelectedLocation(null); setShowReviewForm(false); }}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="flex items-center gap-4 mt-4">
-                {selectedLocation.reviewCount > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-black text-gray-900">
-                      {selectedLocation.averageRating.toFixed(1)}
-                    </span>
-                    {renderStars(Math.round(selectedLocation.averageRating))}
-                  </div>
-                )}
-                <button
-                  onClick={() => setShowReviewForm(!showReviewForm)}
-                  className="btn-prestige !py-2 !px-4 !text-sm ml-auto"
-                >
-                  Write Review
-                </button>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => { setSelectedLocation(null); setShowReviewForm(false) }}
+        >
+          <div
+            className="bg-background-elevated rounded-3xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-hidden animate-fade-in-scale"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className={`h-24 bg-gradient-to-r ${LOCATION_TYPES.find(t => t.value === selectedLocation.location_type)?.gradient || 'from-msu-green to-msu-green-light'} relative`}>
+              <div className="absolute inset-0 bg-black/10" />
+              <button
+                onClick={() => { setSelectedLocation(null); setShowReviewForm(false) }}
+                className="absolute top-4 right-4 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white hover:bg-white/30 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <div className="absolute -bottom-8 left-6 w-16 h-16 rounded-2xl bg-background-elevated shadow-xl flex items-center justify-center text-3xl border-4 border-background-elevated">
+                {LOCATION_TYPES.find(t => t.value === selectedLocation.location_type)?.emoji || '📍'}
               </div>
             </div>
 
-            {/* Review Form */}
-            {showReviewForm && (
-              <div className="p-6 border-b border-gray-100 bg-gray-50">
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Your Rating</label>
-                    {renderStars(newReview.rating, true, (r) => setNewReview({ ...newReview, rating: r }))}
+            {/* Modal Content */}
+            <div className="pt-12 px-6 pb-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-heading text-xl text-foreground">{selectedLocation.name}</h2>
+                  <p className="text-label text-sm mt-1 capitalize">{selectedLocation.location_type}</p>
+                  {selectedLocation.address && (
+                    <p className="text-body-sm text-xs mt-2 flex items-center gap-1.5">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      </svg>
+                      {selectedLocation.address}
+                    </p>
+                  )}
+                </div>
+
+                {selectedLocation.reviewCount > 0 && (
+                  <div className="text-right">
+                    <div className="text-3xl font-black text-foreground">{selectedLocation.averageRating.toFixed(1)}</div>
+                    <StarRating rating={Math.round(selectedLocation.averageRating)} size="sm" />
+                    <p className="text-label text-xs mt-1">{selectedLocation.reviewCount} reviews</p>
                   </div>
-                  <input
-                    type="text"
-                    value={newReview.title}
-                    onChange={(e) => setNewReview({ ...newReview, title: e.target.value })}
-                    placeholder="Review title (optional)"
-                    className="input-prestige"
-                  />
-                  <textarea
-                    value={newReview.content}
-                    onChange={(e) => setNewReview({ ...newReview, content: e.target.value })}
-                    placeholder="Share your experience..."
-                    className="input-prestige min-h-[80px] resize-none"
-                  />
+                )}
+              </div>
+
+              <button
+                onClick={() => setShowReviewForm(!showReviewForm)}
+                className={`w-full mt-6 ${showReviewForm ? 'btn-secondary-prestige' : 'btn-prestige'}`}
+              >
+                {showReviewForm ? (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Cancel
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Write a Review
+                  </>
+                )}
+              </button>
+
+              {/* Review Form */}
+              {showReviewForm && (
+                <div className="mt-6 p-5 bg-background rounded-2xl border border-glass-border animate-fade-in">
+                  <div className="mb-4">
+                    <label className="text-label block mb-2">Your Rating</label>
+                    <StarRating
+                      rating={newReview.rating}
+                      interactive
+                      onChange={(r) => setNewReview({ ...newReview, rating: r })}
+                      size="lg"
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="text-label block mb-2">Title (optional)</label>
+                    <input
+                      type="text"
+                      value={newReview.title}
+                      onChange={(e) => setNewReview({ ...newReview, title: e.target.value })}
+                      placeholder="Sum up your experience"
+                      className="input-prestige"
+                    />
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="text-label block mb-2">Your Review (optional)</label>
+                    <textarea
+                      value={newReview.content}
+                      onChange={(e) => setNewReview({ ...newReview, content: e.target.value })}
+                      placeholder="Share your experience with other Spartans..."
+                      className="input-prestige min-h-[100px] resize-none"
+                    />
+                  </div>
+
                   <button
                     onClick={submitReview}
                     disabled={submitting}
                     className="btn-prestige w-full disabled:opacity-50"
                   >
-                    {submitting ? 'Submitting...' : 'Submit Review'}
+                    {submitting ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Submit Review
+                      </>
+                    )}
                   </button>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Reviews List */}
-            <div className="p-6 overflow-y-auto max-h-[300px]">
-              {selectedLocation.reviews.length === 0 ? (
-                <p className="text-center text-gray-400 py-8">No reviews yet. Be the first!</p>
-              ) : (
-                <div className="space-y-4">
-                  {selectedLocation.reviews.map((review) => (
-                    <div key={review.id} className="border-b border-gray-100 pb-4 last:border-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 rounded-full bg-gray-100 overflow-hidden">
-                          {review.user.avatar_url ? (
-                            <img src={review.user.avatar_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-sm flex items-center justify-center h-full">👤</span>
-                          )}
-                        </div>
-                        <div>
-                          <p className="font-bold text-sm text-gray-900">{review.user.full_name}</p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-yellow-500">{'⭐'.repeat(review.rating)}</span>
+              {/* Reviews List */}
+              <div className="mt-6 max-h-[250px] overflow-y-auto">
+                {selectedLocation.reviews.length === 0 ? (
+                  <div className="text-center py-8 bg-background rounded-2xl border border-glass-border">
+                    <span className="text-3xl block mb-2">💭</span>
+                    <p className="text-body-sm">No reviews yet. Be the first to share your experience!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {selectedLocation.reviews.map((review) => (
+                      <div key={review.id} className="bg-background rounded-2xl p-4 border border-glass-border">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-full bg-background-elevated overflow-hidden flex-shrink-0 border border-glass-border">
+                            {review.user.avatar_url ? (
+                              <img src={review.user.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-sm flex items-center justify-center h-full">👤</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <p className="font-semibold text-sm text-foreground">{review.user.full_name}</p>
+                              <StarRating rating={review.rating} size="sm" />
+                            </div>
+                            {review.title && (
+                              <p className="font-semibold text-foreground mt-2">{review.title}</p>
+                            )}
+                            {review.content && (
+                              <p className="text-body-sm mt-1">{review.content}</p>
+                            )}
                           </div>
                         </div>
                       </div>
-                      {review.title && <p className="font-bold text-gray-800">{review.title}</p>}
-                      {review.content && <p className="text-sm text-gray-600 mt-1">{review.content}</p>}
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

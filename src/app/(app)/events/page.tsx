@@ -13,13 +13,54 @@ interface EventWithDetails extends Event {
   userStatus: 'going' | 'interested' | 'maybe' | null
 }
 
-const EVENT_TYPES: { value: EventType; label: string; emoji: string }[] = [
-  { value: 'campus', label: 'Campus', emoji: '🏫' },
-  { value: 'social', label: 'Social', emoji: '🎉' },
-  { value: 'academic', label: 'Academic', emoji: '📚' },
-  { value: 'sports', label: 'Sports', emoji: '🏀' },
-  { value: 'club', label: 'Club', emoji: '🎭' },
+const EVENT_TYPES: { value: EventType; label: string; emoji: string; color: string }[] = [
+  { value: 'campus', label: 'Campus', emoji: '🏫', color: 'from-blue-500 to-blue-600' },
+  { value: 'social', label: 'Social', emoji: '🎉', color: 'from-pink-500 to-rose-500' },
+  { value: 'academic', label: 'Academic', emoji: '📚', color: 'from-amber-500 to-orange-500' },
+  { value: 'sports', label: 'Sports', emoji: '🏀', color: 'from-green-500 to-emerald-500' },
+  { value: 'club', label: 'Club', emoji: '🎭', color: 'from-purple-500 to-violet-500' },
 ]
+
+function EventCardSkeleton() {
+  return (
+    <div className="card-prestige !p-0 overflow-hidden">
+      <div className="h-2 skeleton rounded-none" />
+      <div className="p-6">
+        <div className="flex gap-4">
+          <div className="w-16 h-16 skeleton rounded-2xl" />
+          <div className="flex-1">
+            <div className="skeleton-text w-3/4 mb-2" />
+            <div className="skeleton-text-sm w-1/2" />
+          </div>
+        </div>
+        <div className="mt-4 flex gap-2">
+          <div className="skeleton h-9 w-24 rounded-xl" />
+          <div className="skeleton h-9 w-24 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EmptyState({ onCreateClick }: { onCreateClick: () => void }) {
+  return (
+    <div className="card-prestige !bg-background-elevated/50 !border-dashed !border-2 text-center py-16 animate-fade-in">
+      <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-msu-green/5 flex items-center justify-center">
+        <span className="text-4xl">📅</span>
+      </div>
+      <h3 className="text-heading text-xl mb-2 text-foreground">No Upcoming Events</h3>
+      <p className="text-body-sm max-w-sm mx-auto mb-6">
+        Be the first to create an event and bring Spartans together!
+      </p>
+      <button onClick={onCreateClick} className="btn-prestige !px-8">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+        </svg>
+        Create First Event
+      </button>
+    </div>
+  )
+}
 
 export default function EventsPage() {
   const [events, setEvents] = useState<EventWithDetails[]>([])
@@ -40,6 +81,7 @@ export default function EventsPage() {
 
   useEffect(() => {
     fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchData = async () => {
@@ -54,7 +96,6 @@ export default function EventsPage() {
 
     setCurrentUser(profile)
 
-    // Fetch upcoming events
     const { data: eventsData } = await supabase
       .from('events')
       .select('*')
@@ -62,7 +103,6 @@ export default function EventsPage() {
       .order('start_time', { ascending: true })
 
     if (eventsData) {
-      // Get creator profiles
       const creatorIds = [...new Set(eventsData.map(e => e.creator_id))]
       const { data: creators } = await supabase
         .from('profiles')
@@ -71,7 +111,6 @@ export default function EventsPage() {
 
       const creatorMap = new Map(creators?.map(c => [c.id, c]) || [])
 
-      // Get attendee counts and user status
       const eventIds = eventsData.map(e => e.id)
       const { data: attendees } = await supabase
         .from('event_attendees')
@@ -118,7 +157,6 @@ export default function EventsPage() {
     })
 
     if (insertError) {
-      console.error('Event creation error:', insertError)
       setError(`Failed to create event: ${insertError.message}`)
       setCreating(false)
       return
@@ -143,7 +181,7 @@ export default function EventsPage() {
         .eq('user_id', currentUser.id)
 
       if (deleteError) {
-        setError(`Failed to update attendance: ${deleteError.message}`)
+        setError(`Failed to update: ${deleteError.message}`)
         return
       }
     } else {
@@ -156,7 +194,7 @@ export default function EventsPage() {
         })
 
       if (upsertError) {
-        setError(`Failed to update attendance: ${upsertError.message}`)
+        setError(`Failed to update: ${upsertError.message}`)
         return
       }
     }
@@ -171,11 +209,14 @@ export default function EventsPage() {
     tomorrow.setDate(tomorrow.getDate() + 1)
 
     if (date.toDateString() === now.toDateString()) {
-      return `Today at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+      return { day: 'Today', time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
     } else if (date.toDateString() === tomorrow.toDateString()) {
-      return `Tomorrow at ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+      return { day: 'Tomorrow', time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
     } else {
-      return date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      return {
+        day: date.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }),
+        time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
     }
   }
 
@@ -183,187 +224,295 @@ export default function EventsPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="animate-pulse space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-2xl p-6 h-40" />
-          ))}
+      <div className="max-w-4xl mx-auto px-4 py-12">
+        <div className="mb-10">
+          <div className="skeleton-text w-48 h-10 mb-2" />
+          <div className="skeleton-text-sm w-64" />
+        </div>
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => <EventCardSkeleton key={i} />)}
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 relative">
-      <div className="absolute top-0 right-0 w-64 h-64 bg-msu-green/5 blur-[100px] rounded-full -z-10" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-msu-accent/5 blur-[120px] rounded-full -z-10" />
+    <div className="max-w-4xl mx-auto px-4 py-12 relative">
+      {/* Grain Overlay */}
+      <div className="grain-overlay" />
 
-      <div className="flex justify-between items-end mb-8 animate-fade-in">
+      {/* Background accents */}
+      <div className="absolute top-0 right-0 w-80 h-80 bg-msu-green/5 blur-[120px] rounded-full -z-10" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-gold/5 blur-[150px] rounded-full -z-10" />
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-10 animate-fade-in">
         <div>
-          <h1 className="text-4xl font-black text-gray-900 tracking-tight">Events</h1>
-          <p className="text-gray-500 font-bold text-sm mt-1">What's happening on campus</p>
+          <h1 className="text-display text-3xl md:text-4xl text-foreground tracking-tight">
+            Campus <span className="text-gradient-primary">Events</span>
+          </h1>
+          <p className="text-body-sm mt-2">
+            Discover what&apos;s happening around MSU
+          </p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="btn-prestige !py-2 !px-4 !text-sm"
+          className={showForm ? 'btn-secondary-prestige' : 'btn-prestige'}
         >
-          {showForm ? 'Cancel' : '+ Create Event'}
+          {showForm ? (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Cancel
+            </>
+          ) : (
+            <>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Create Event
+            </>
+          )}
         </button>
       </div>
 
+      {/* Error Alert */}
       {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-medium animate-fade-in">
+        <div className="alert-error-prestige">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
           {error}
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar animate-fade-in">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${
-            filter === 'all'
-              ? 'bg-msu-green text-white'
-              : 'bg-white text-gray-600 border border-gray-200'
-          }`}
-        >
-          All Events
-        </button>
-        {EVENT_TYPES.map((type) => (
-          <button
-            key={type.value}
-            onClick={() => setFilter(type.value)}
-            className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${
-              filter === type.value
-                ? 'bg-msu-green text-white'
-                : 'bg-white text-gray-600 border border-gray-200'
-            }`}
-          >
-            {type.emoji} {type.label}
-          </button>
-        ))}
-      </div>
-
       {/* Create Form */}
       {showForm && (
-        <div className="card-prestige !p-6 mb-6 animate-fade-in">
-          <h3 className="font-black text-gray-800 mb-4">Create New Event</h3>
-          <div className="space-y-4">
-            <input
-              type="text"
-              value={newEvent.title}
-              onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-              placeholder="Event title"
-              className="input-prestige"
-            />
-            <div className="grid grid-cols-2 gap-4">
+        <div className="card-prestige !p-8 mb-8 animate-fade-in-scale">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-msu-gradient flex items-center justify-center text-white">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-heading text-lg text-foreground">Create New Event</h3>
+              <p className="text-body-sm text-sm">Fill in the details below</p>
+            </div>
+          </div>
+
+          <div className="space-y-5">
+            <div>
+              <label className="text-label block mb-2">Event Title *</label>
               <input
-                type="datetime-local"
-                value={newEvent.start_time}
-                onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
+                type="text"
+                value={newEvent.title}
+                onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+                placeholder="What's happening?"
                 className="input-prestige"
               />
-              <select
-                value={newEvent.event_type}
-                onChange={(e) => setNewEvent({ ...newEvent, event_type: e.target.value as EventType })}
-                className="input-prestige"
-              >
-                {EVENT_TYPES.map((type) => (
-                  <option key={type.value} value={type.value}>
-                    {type.emoji} {type.label}
-                  </option>
-                ))}
-              </select>
             </div>
-            <input
-              type="text"
-              value={newEvent.location}
-              onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
-              placeholder="Location (optional)"
-              className="input-prestige"
-            />
-            <textarea
-              value={newEvent.description}
-              onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-              placeholder="Description (optional)"
-              className="input-prestige min-h-[80px] resize-none"
-            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-label block mb-2">Date & Time *</label>
+                <input
+                  type="datetime-local"
+                  value={newEvent.start_time}
+                  onChange={(e) => setNewEvent({ ...newEvent, start_time: e.target.value })}
+                  className="input-prestige"
+                />
+              </div>
+              <div>
+                <label className="text-label block mb-2">Event Type</label>
+                <select
+                  value={newEvent.event_type}
+                  onChange={(e) => setNewEvent({ ...newEvent, event_type: e.target.value as EventType })}
+                  className="input-prestige"
+                >
+                  {EVENT_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.emoji} {type.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-label block mb-2">Location</label>
+              <input
+                type="text"
+                value={newEvent.location}
+                onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+                placeholder="Where is it happening?"
+                className="input-prestige"
+              />
+            </div>
+
+            <div>
+              <label className="text-label block mb-2">Description</label>
+              <textarea
+                value={newEvent.description}
+                onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                placeholder="Tell people more about this event..."
+                className="input-prestige min-h-[100px] resize-none"
+              />
+            </div>
+
             <button
               onClick={createEvent}
               disabled={!newEvent.title.trim() || !newEvent.start_time || creating}
               className="btn-prestige w-full disabled:opacity-50"
             >
-              {creating ? 'Creating...' : 'Create Event'}
+              {creating ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Create Event
+                </>
+              )}
             </button>
           </div>
         </div>
       )}
 
+      {/* Filter Tabs */}
+      <div className="flex gap-2 mb-8 overflow-x-auto pb-2 no-scrollbar animate-fade-in">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-5 py-2.5 rounded-xl font-semibold text-sm whitespace-nowrap transition-all ${
+            filter === 'all'
+              ? 'bg-msu-gradient text-white shadow-lg'
+              : 'bg-background-elevated text-foreground-muted border border-glass-border hover:border-glass-border-hover'
+          }`}
+        >
+          All Events
+          <span className="ml-2 text-xs opacity-70">({events.length})</span>
+        </button>
+        {EVENT_TYPES.map((type) => {
+          const count = events.filter(e => e.event_type === type.value).length
+          return (
+            <button
+              key={type.value}
+              onClick={() => setFilter(type.value)}
+              className={`px-5 py-2.5 rounded-xl font-semibold text-sm whitespace-nowrap transition-all flex items-center gap-2 ${
+                filter === type.value
+                  ? 'bg-msu-gradient text-white shadow-lg'
+                  : 'bg-background-elevated text-foreground-muted border border-glass-border hover:border-glass-border-hover'
+              }`}
+            >
+              <span>{type.emoji}</span>
+              {type.label}
+              {count > 0 && <span className="text-xs opacity-70">({count})</span>}
+            </button>
+          )
+        })}
+      </div>
+
       {/* Events List */}
       {filteredEvents.length === 0 ? (
-        <div className="card-prestige text-center py-16 animate-fade-in">
-          <span className="text-6xl block mb-4">📅</span>
-          <h3 className="text-xl font-black text-gray-800 mb-2">No upcoming events</h3>
-          <p className="text-gray-500 font-medium">
-            Be the first to create one!
-          </p>
-        </div>
+        <EmptyState onCreateClick={() => setShowForm(true)} />
       ) : (
-        <div className="space-y-4 animate-fade-in">
-          {filteredEvents.map((event) => {
+        <div className="space-y-4">
+          {filteredEvents.map((event, idx) => {
             const typeInfo = EVENT_TYPES.find(t => t.value === event.event_type)
+            const { day, time } = formatDate(event.start_time)
+
             return (
-              <div key={event.id} className="card-prestige !p-6">
-                <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 rounded-2xl bg-msu-green/10 flex items-center justify-center text-2xl flex-shrink-0">
-                    {typeInfo?.emoji || '📅'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="font-black text-lg text-gray-900">{event.title}</h3>
-                        <p className="text-sm text-msu-green font-bold mt-1">
-                          {formatDate(event.start_time)}
-                        </p>
+              <div
+                key={event.id}
+                className={`card-prestige !p-0 overflow-hidden animate-fade-in reveal-delay-${(idx % 3) + 1}`}
+              >
+                {/* Color accent bar */}
+                <div className={`h-1.5 bg-gradient-to-r ${typeInfo?.color || 'from-msu-green to-msu-green-light'}`} />
+
+                <div className="p-6">
+                  <div className="flex gap-5">
+                    {/* Date/Time Box */}
+                    <div className="flex-shrink-0 w-20 text-center">
+                      <div className="bg-background rounded-xl border border-glass-border p-3">
+                        <div className="text-xs font-bold text-msu-green uppercase tracking-wider">{day.split(' ')[0]}</div>
+                        <div className="text-2xl font-black text-foreground mt-0.5">{day.split(' ')[1] || day.split(' ')[0]}</div>
+                        <div className="text-xs text-foreground-subtle mt-1">{time}</div>
                       </div>
-                      <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
-                        {event.attendeeCount} going
-                      </span>
                     </div>
-                    {event.location && (
-                      <p className="text-sm text-gray-500 mt-2">📍 {event.location}</p>
-                    )}
-                    {event.description && (
-                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">{event.description}</p>
-                    )}
-                    <div className="flex items-center justify-between mt-4">
-                      <Link
-                        href={`/profile/${event.creator.id}`}
-                        className="flex items-center gap-2 text-xs text-gray-500 hover:text-msu-green"
-                      >
-                        <div className="w-6 h-6 rounded-full bg-gray-100 overflow-hidden">
-                          {event.creator.avatar_url ? (
-                            <img src={event.creator.avatar_url} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="text-xs flex items-center justify-center h-full">👤</span>
-                          )}
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-lg">{typeInfo?.emoji}</span>
+                            <span className="text-label text-msu-green">{typeInfo?.label}</span>
+                          </div>
+                          <h3 className="text-heading text-lg text-foreground leading-tight">{event.title}</h3>
                         </div>
-                        <span>by {event.creator.full_name}</span>
-                      </Link>
-                      <div className="flex gap-2">
-                        {(['going', 'interested', 'maybe'] as const).map((status) => (
-                          <button
-                            key={status}
-                            onClick={() => updateAttendance(event.id, event.userStatus === status ? null : status)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                              event.userStatus === status
-                                ? 'bg-msu-green text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                            }`}
-                          >
-                            {status === 'going' ? "I'm going" : status === 'interested' ? 'Interested' : 'Maybe'}
-                          </button>
-                        ))}
+
+                        {/* Attendee count */}
+                        <div className="flex items-center gap-2 bg-msu-green/5 px-3 py-1.5 rounded-full border border-msu-green/10">
+                          <svg className="w-4 h-4 text-msu-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          <span className="text-sm font-bold text-msu-green">{event.attendeeCount}</span>
+                        </div>
+                      </div>
+
+                      {event.location && (
+                        <p className="text-body-sm flex items-center gap-1.5 mt-2">
+                          <svg className="w-4 h-4 text-foreground-subtle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          {event.location}
+                        </p>
+                      )}
+
+                      {event.description && (
+                        <p className="text-body-sm line-clamp-2 mt-2">{event.description}</p>
+                      )}
+
+                      {/* Footer */}
+                      <div className="flex items-center justify-between mt-5 pt-4 border-t border-glass-border">
+                        <Link
+                          href={`/profile/${event.creator.id}`}
+                          className="flex items-center gap-2.5 group"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-background overflow-hidden border-2 border-background-elevated">
+                            {event.creator.avatar_url ? (
+                              <img src={event.creator.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="text-xs flex items-center justify-center h-full">👤</span>
+                            )}
+                          </div>
+                          <span className="text-sm font-medium text-foreground-muted group-hover:text-msu-green transition-colors">
+                            {event.creator.full_name}
+                          </span>
+                        </Link>
+
+                        {/* RSVP Buttons */}
+                        <div className="flex gap-2">
+                          {(['going', 'interested', 'maybe'] as const).map((status) => (
+                            <button
+                              key={status}
+                              onClick={() => updateAttendance(event.id, event.userStatus === status ? null : status)}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition-all ${
+                                event.userStatus === status
+                                  ? 'bg-msu-gradient text-white shadow-md'
+                                  : 'bg-background text-foreground-muted border border-glass-border hover:border-msu-green/30 hover:text-msu-green'
+                              }`}
+                            >
+                              {status === 'going' ? '✓ Going' : status === 'interested' ? '♡ Interested' : '? Maybe'}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
