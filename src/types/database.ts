@@ -443,6 +443,32 @@ export interface Database {
           updated_at?: string
         }
       }
+      profile_photos: {
+        Row: {
+          id: string
+          user_id: string
+          photo_url: string
+          display_order: number
+          caption: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          photo_url: string
+          display_order?: number
+          caption?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          photo_url?: string
+          display_order?: number
+          caption?: string | null
+          created_at?: string
+        }
+      }
     }
     Functions: {
       accept_friend_request: {
@@ -479,3 +505,4 @@ export type EventAttendee = Database['public']['Tables']['event_attendees']['Row
 export type SpontaneousPost = Database['public']['Tables']['spontaneous_posts']['Row']
 export type Location = Database['public']['Tables']['locations']['Row']
 export type Review = Database['public']['Tables']['reviews']['Row']
+export type ProfilePhoto = Database['public']['Tables']['profile_photos']['Row']

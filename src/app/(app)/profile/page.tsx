@@ -7,7 +7,8 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import ImageCropper from '@/components/ImageCropper'
-import type { Profile, YearType } from '@/types/database'
+import PhotoGallery from '@/components/PhotoGallery'
+import type { Profile, ProfilePhoto, YearType } from '@/types/database'
 
 const INTERESTS = [
   'Basketball', 'Soccer', 'Football', 'Gaming', 'Music', 'Movies',
@@ -56,6 +57,9 @@ export default function MyProfilePage() {
   const [showCropper, setShowCropper] = useState(false)
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null)
   const [showCopied, setShowCopied] = useState(false)
+  const [photos, setPhotos] = useState<ProfilePhoto[]>([])
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetchProfile()
@@ -91,6 +95,15 @@ export default function MyProfilePage() {
       campus_area: profileData.campus_area || '',
     })
     setAvatarPreview(profileData.avatar_url)
+
+    // Fetch profile photos
+    const { data: photosData } = await supabase
+      .from('profile_photos')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('display_order', { ascending: true })
+
+    setPhotos(photosData || [])
     setLoading(false)
   }
 
@@ -161,6 +174,92 @@ export default function MyProfilePage() {
       .getPublicUrl(filePath)
 
     return `${data.publicUrl}?t=${Date.now()}`
+  }
+
+  const handleGalleryPhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !profile) return
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError('Image must be less than 10MB')
+      return
+    }
+
+    setUploadingPhoto(true)
+    setError('')
+
+    try {
+      const photoId = crypto.randomUUID()
+      const filePath = `${profile.id}/${photoId}.jpg`
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, {
+          contentType: file.type,
+        })
+
+      if (uploadError) throw uploadError
+
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      const photoUrl = `${data.publicUrl}?t=${Date.now()}`
+
+      // Insert into profile_photos table
+      const { data: newPhoto, error: insertError } = await supabase
+        .from('profile_photos')
+        .insert({
+          user_id: profile.id,
+          photo_url: photoUrl,
+          display_order: photos.length,
+        })
+        .select()
+        .single()
+
+      if (insertError) throw insertError
+
+      setPhotos(prev => [...prev, newPhoto])
+      setSuccess('Photo added!')
+      setTimeout(() => setSuccess(''), 2000)
+    } catch (err) {
+      console.error('Upload error:', err)
+      setError('Failed to upload photo')
+    } finally {
+      setUploadingPhoto(false)
+      if (galleryInputRef.current) {
+        galleryInputRef.current.value = ''
+      }
+    }
+  }
+
+  const handleDeletePhoto = async (photoId: string) => {
+    if (!profile) return
+
+    try {
+      const photoToDelete = photos.find(p => p.id === photoId)
+      if (!photoToDelete) return
+
+      // Delete from database
+      const { error } = await supabase
+        .from('profile_photos')
+        .delete()
+        .eq('id', photoId)
+
+      if (error) throw error
+
+      // Try to delete from storage (extract path from URL)
+      const urlParts = photoToDelete.photo_url.split('/avatars/')
+      if (urlParts[1]) {
+        const storagePath = urlParts[1].split('?')[0]
+        await supabase.storage.from('avatars').remove([storagePath])
+      }
+
+      setPhotos(prev => prev.filter(p => p.id !== photoId))
+    } catch (err) {
+      console.error('Delete error:', err)
+      setError('Failed to delete photo')
+    }
   }
 
   const handleSave = async () => {
@@ -386,6 +485,32 @@ export default function MyProfilePage() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Photo Gallery Section */}
+          <div className="mb-12">
+            <h3 className="text-xs font-black text-gray-300 uppercase tracking-widest mb-4">Photo Gallery</h3>
+            <PhotoGallery
+              photos={photos}
+              avatarUrl={profile.avatar_url}
+              isEditing={editing}
+              onAddPhoto={() => galleryInputRef.current?.click()}
+              onDeletePhoto={handleDeletePhoto}
+            />
+            {editing && (
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleGalleryPhotoSelect}
+                className="hidden"
+              />
+            )}
+            {uploadingPhoto && (
+              <div className="mt-3 text-center text-sm text-gray-500 font-medium">
+                Uploading photo...
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">

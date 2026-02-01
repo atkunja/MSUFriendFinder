@@ -8,7 +8,8 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { calculateMatchScore } from '@/lib/matchScore'
-import type { Profile } from '@/types/database'
+import PhotoGallery from '@/components/PhotoGallery'
+import type { Profile, ProfilePhoto } from '@/types/database'
 
 export default function ProfilePage() {
   const params = useParams()
@@ -22,6 +23,7 @@ export default function ProfilePage() {
   const [relationshipStatus, setRelationshipStatus] = useState<'none' | 'friends' | 'sent' | 'received'>('none')
   const [matchScore, setMatchScore] = useState<{ score: number; reasons: string[] } | null>(null)
   const [showCopied, setShowCopied] = useState(false)
+  const [photos, setPhotos] = useState<ProfilePhoto[]>([])
   const supabase = createClient()
 
   useEffect(() => {
@@ -54,6 +56,15 @@ export default function ProfilePage() {
     }
 
     setProfile(profileData)
+
+    // Fetch profile photos
+    const { data: photosData } = await supabase
+      .from('profile_photos')
+      .select('*')
+      .eq('user_id', profileId)
+      .order('display_order', { ascending: true })
+
+    setPhotos(photosData || [])
 
     // Fetch current user profile
     const { data: currentProfile } = await supabase
@@ -297,6 +308,17 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
+
+          {/* Photo Gallery Section */}
+          {(photos.length > 0 || profile.avatar_url) && (
+            <div className="mb-12">
+              <h3 className="text-xs font-black text-gray-300 uppercase tracking-widest mb-4">Photo Gallery</h3>
+              <PhotoGallery
+                photos={photos}
+                avatarUrl={profile.avatar_url}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="md:col-span-2 space-y-12">
