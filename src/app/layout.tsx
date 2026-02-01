@@ -1,20 +1,37 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Playfair_Display, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Premium serif for headings - elegant, distinctive
+const playfair = Playfair_Display({
+  variable: "--font-display",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Modern geometric sans for body - clean, readable
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-body",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// Technical mono for stats and badges
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
+  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "MSU Friend Finder",
-  description: "Find friends, study partners, and more at Michigan State University",
+  title: "SpartanFinder | The Premium MSU Connection Network",
+  description: "The exclusive friend-finder network for Michigan State University students. Forge meaningful connections with fellow Spartans.",
+  keywords: ["MSU", "Michigan State", "friends", "networking", "college", "students"],
+  openGraph: {
+    title: "SpartanFinder | The Premium MSU Connection Network",
+    description: "Find your study collective, lifestyle partners, and meaningful friendships within the MSU community.",
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -25,7 +42,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${playfair.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased`}
       >
         {children}
       </body>
