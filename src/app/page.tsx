@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
 
 /* =======================================================================
    SPARTANFINDER LANDING PAGE
@@ -78,7 +79,20 @@ const SAMPLE_STUDENTS = [
 
 export default function LandingPage() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+  const [userCount, setUserCount] = useState<number | null>(null)
   const heroRef = useRef<HTMLDivElement>(null)
+  const supabase = createClient()
+
+  // Fetch real user count
+  useEffect(() => {
+    const fetchUserCount = async () => {
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+      setUserCount(count || 0)
+    }
+    fetchUserCount()
+  }, [])
 
   // Parallax mouse tracking
   const handleMouseMove = useCallback((e: MouseEvent) => {
@@ -94,8 +108,13 @@ export default function LandingPage() {
     return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [handleMouseMove])
 
+<<<<<<< HEAD
   // Stats counter
   const memberCount = useCountUp(48, 25, 10)
+=======
+  // Animated counter - uses real count or 0 while loading
+  const memberCount = useCountUp(userCount ?? 0, 2000, 500)
+>>>>>>> 0373beb (fix: add env var guards to Supabase clients)
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -224,6 +243,7 @@ export default function LandingPage() {
             Connect with future classmates, find roommates, and build your Spartan community before you arrive on campus.
           </p>
 
+<<<<<<< HEAD
           {/* Stats */}
           <div
             className="flex items-center justify-center gap-3 mb-10"
@@ -241,6 +261,18 @@ export default function LandingPage() {
                   {emoji}
                 </div>
               ))}
+=======
+          {/* Live User Counter Badge */}
+          <div className="animate-fade-in reveal-delay-3 mb-10">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background-elevated/80 backdrop-blur-sm border border-glass-border shadow-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="text-sm text-foreground-muted">
+                <span className="font-semibold text-foreground tabular-nums">{memberCount.toLocaleString()}</span> Spartans active
+              </span>
+>>>>>>> 0373beb (fix: add env var guards to Supabase clients)
             </div>
             <p className="text-sm text-foreground-muted">
               <span className="font-mono font-bold text-msu-green">{memberCount.toLocaleString()}+</span> Spartans joined
