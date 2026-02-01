@@ -35,6 +35,7 @@ export default function EventsPage() {
     start_time: '',
     event_type: 'social' as EventType,
   })
+  const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -105,8 +106,9 @@ export default function EventsPage() {
     if (!newEvent.title.trim() || !newEvent.start_time || !currentUser) return
 
     setCreating(true)
+    setError(null)
 
-    const { error } = await supabase.from('events').insert({
+    const { error: insertError } = await supabase.from('events').insert({
       creator_id: currentUser.id,
       title: newEvent.title.trim(),
       description: newEvent.description.trim() || null,
@@ -115,32 +117,48 @@ export default function EventsPage() {
       event_type: newEvent.event_type,
     })
 
-    if (!error) {
-      setNewEvent({ title: '', description: '', location: '', start_time: '', event_type: 'social' })
-      setShowForm(false)
-      fetchData()
+    if (insertError) {
+      console.error('Event creation error:', insertError)
+      setError(`Failed to create event: ${insertError.message}`)
+      setCreating(false)
+      return
     }
 
+    setNewEvent({ title: '', description: '', location: '', start_time: '', event_type: 'social' })
+    setShowForm(false)
+    fetchData()
     setCreating(false)
   }
 
   const updateAttendance = async (eventId: string, status: 'going' | 'interested' | 'maybe' | null) => {
     if (!currentUser) return
 
+    setError(null)
+
     if (status === null) {
-      await supabase
+      const { error: deleteError } = await supabase
         .from('event_attendees')
         .delete()
         .eq('event_id', eventId)
         .eq('user_id', currentUser.id)
+
+      if (deleteError) {
+        setError(`Failed to update attendance: ${deleteError.message}`)
+        return
+      }
     } else {
-      await supabase
+      const { error: upsertError } = await supabase
         .from('event_attendees')
         .upsert({
           event_id: eventId,
           user_id: currentUser.id,
           status,
         })
+
+      if (upsertError) {
+        setError(`Failed to update attendance: ${upsertError.message}`)
+        return
+      }
     }
 
     fetchData()
@@ -192,6 +210,12 @@ export default function EventsPage() {
           {showForm ? 'Cancel' : '+ Create Event'}
         </button>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-medium animate-fade-in">
+          {error}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-2 mb-6 overflow-x-auto no-scrollbar animate-fade-in">

@@ -26,6 +26,7 @@ export default function MessagesPage() {
   const [selectedFriends, setSelectedFriends] = useState<string[]>([])
   const [groupName, setGroupName] = useState('')
   const [creating, setCreating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -198,17 +199,28 @@ export default function MessagesPage() {
     if (selectedFriends.length < 2 || !currentUserId) return
 
     setCreating(true)
+    setError(null)
 
-    const { data: conversationId, error } = await supabase.rpc('create_group_chat', {
+    const { data: conversationId, error: rpcError } = await supabase.rpc('create_group_chat', {
       p_name: groupName.trim() || null,
       p_member_ids: selectedFriends,
     })
 
-    if (!error && conversationId) {
+    if (rpcError) {
+      console.error('Group chat creation error:', rpcError)
+      setError(`Failed to create group: ${rpcError.message}`)
+      setCreating(false)
+      return
+    }
+
+    if (conversationId) {
       setShowCreateGroup(false)
       setSelectedFriends([])
       setGroupName('')
+      setError(null)
       router.push(`/messages/${conversationId}`)
+    } else {
+      setError('Failed to create group chat')
     }
 
     setCreating(false)
@@ -449,6 +461,11 @@ export default function MessagesPage() {
             </div>
 
             <div className="p-6 border-t border-gray-100">
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-medium">
+                  {error}
+                </div>
+              )}
               <button
                 onClick={createGroupChat}
                 disabled={selectedFriends.length < 2 || creating}

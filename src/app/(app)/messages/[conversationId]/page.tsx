@@ -28,6 +28,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true)
   const [displayName, setDisplayName] = useState('')
   const [displayAvatar, setDisplayAvatar] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -187,18 +188,22 @@ export default function ChatPage() {
     if (!newMessage.trim() || !currentUserId || sending) return
 
     setSending(true)
+    setError(null)
     const messageContent = newMessage.trim()
     setNewMessage('')
 
-    const { error } = await supabase.from('messages').insert({
+    const { error: insertError } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: currentUserId,
       content: messageContent,
     })
 
-    if (error) {
-      console.error('Error sending message:', error)
+    if (insertError) {
+      console.error('Error sending message:', insertError)
+      setError(`Failed to send: ${insertError.message}`)
       setNewMessage(messageContent)
+      setSending(false)
+      return
     }
 
     // Update conversation updated_at
@@ -313,6 +318,11 @@ export default function ChatPage() {
 
       {/* Message Input */}
       <div className="p-4 border-t border-gray-100 bg-white">
+        {error && (
+          <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-medium">
+            {error}
+          </div>
+        )}
         <form onSubmit={sendMessage} className="flex items-center gap-3">
           <input
             ref={inputRef}
