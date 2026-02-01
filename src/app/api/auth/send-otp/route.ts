@@ -34,9 +34,13 @@ export async function POST(request: Request) {
 
         if (!emailResult.success) {
             console.error('Email sending failed:', emailResult.error)
+
+            // Fallback: show code in UI if email fails (until domain is verified)
             return NextResponse.json({
-                error: 'Failed to send verification email. Please try again.'
-            }, { status: 500 })
+                success: true,
+                message: 'Email delivery failed - use code below',
+                devCode: code
+            })
         }
 
         return NextResponse.json({
