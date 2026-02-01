@@ -13,6 +13,7 @@ export default function FriendsPage() {
   const [friends, setFriends] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [startingChat, setStartingChat] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
@@ -59,17 +60,27 @@ export default function FriendsPage() {
 
   const startConversation = async (friendId: string) => {
     setStartingChat(friendId)
+    setError(null)
     try {
-      const { data: conversationId, error } = await supabase
+      const { data: conversationId, error: rpcError } = await supabase
         .rpc('get_or_create_conversation', { p_other_user: friendId })
 
-      if (error) throw error
+      if (rpcError) {
+        console.error('RPC error:', rpcError)
+        setError(`Failed to start conversation: ${rpcError.message}`)
+        setStartingChat(null)
+        return
+      }
 
       if (conversationId) {
         router.push(`/messages/${conversationId}`)
+      } else {
+        setError('Failed to create conversation')
+        setStartingChat(null)
       }
-    } catch (error) {
-      console.error('Error starting conversation:', error)
+    } catch (err) {
+      console.error('Error starting conversation:', err)
+      setError('An unexpected error occurred')
       setStartingChat(null)
     }
   }
@@ -94,6 +105,12 @@ export default function FriendsPage() {
       {/* Background accents */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-msu-green/5 blur-[100px] rounded-full -z-10" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-msu-accent/5 blur-[120px] rounded-full -z-10" />
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm font-medium">
+          {error}
+        </div>
+      )}
 
       <div className="flex justify-between items-end mb-10">
         <div>
