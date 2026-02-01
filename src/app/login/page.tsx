@@ -2,41 +2,113 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+
+type Step = 'email' | 'verify'
 
 export default function LoginPage() {
+  const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const router = useRouter()
-  const supabase = createClient()
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    if (!email || !password) {
-      setError('Please enter email and password')
+    if (!email) {
+      setError('Please enter your email')
       setLoading(false)
       return
     }
 
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-
-    if (signInError) {
-      setError(signInError.message)
+    if (!email.endsWith('@msu.edu')) {
+      setError('Please use your @msu.edu email address')
       setLoading(false)
       return
     }
 
-    router.push('/discover')
-    router.refresh()
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to send code')
+        setLoading(false)
+        return
+      }
+
+      setStep('verify')
+    } catch {
+      setError('Something went wrong. Please try again.')
+    }
+
+    setLoading(false)
+  }
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    if (!code || code.length !== 6) {
+      setError('Please enter the 6-digit code')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Invalid code')
+        setLoading(false)
+        return
+      }
+
+      // Redirect to the magic link URL which will set the session
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    setError('')
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to resend code')
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
+    }
+
+    setLoading(false)
   }
 
   return (
@@ -51,7 +123,7 @@ export default function LoginPage() {
           <h1 className="text-3xl font-black text-prestige-gradient tracking-tighter">SpartanFinder</h1>
         </Link>
         <p className="mt-2 text-center text-sm font-bold text-foreground-subtle uppercase tracking-widest">
-          Sign in to your account
+          {step === 'email' ? 'Sign in to your account' : 'Enter verification code'}
         </p>
       </div>
 
@@ -64,45 +136,89 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <label htmlFor="email" className="block text-xs font-black text-foreground-subtle uppercase tracking-widest ml-1">
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input-prestige"
-                placeholder="spartan@msu.edu"
-              />
-            </div>
+          {step === 'email' ? (
+            <form onSubmit={handleSendCode} className="space-y-6">
+              <div className="space-y-2">
+                <label htmlFor="email" className="block text-xs font-black text-foreground-subtle uppercase tracking-widest ml-1">
+                  MSU Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-prestige"
+                  placeholder="spartan@msu.edu"
+                />
+                <p className="text-xs text-foreground-subtle ml-1">
+                  We'll send a verification code to this email
+                </p>
+              </div>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-xs font-black text-foreground-subtle uppercase tracking-widest ml-1">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input-prestige"
-                placeholder="Enter your password"
-              />
-            </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full btn-prestige !py-4 shadow-xl disabled:opacity-50"
+              >
+                {loading ? 'Sending code...' : 'Send Verification Code'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyCode} className="space-y-5">
+              <div className="text-center mb-6">
+                <p className="text-foreground-muted text-sm">
+                  We sent a code to
+                </p>
+                <p className="text-foreground font-semibold">{email}</p>
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn-prestige !py-4 shadow-xl disabled:opacity-50"
-            >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
+              <div className="space-y-2">
+                <label htmlFor="code" className="block text-xs font-black text-foreground-subtle uppercase tracking-widest ml-1">
+                  Verification Code
+                </label>
+                <input
+                  id="code"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  required
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  className="input-prestige text-center text-2xl tracking-[0.5em] font-mono"
+                  placeholder="000000"
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || code.length !== 6}
+                className="w-full btn-prestige !py-4 shadow-xl disabled:opacity-50 mt-6"
+              >
+                {loading ? 'Verifying...' : 'Sign In'}
+              </button>
+
+              <div className="flex items-center justify-between text-sm">
+                <button
+                  type="button"
+                  onClick={() => setStep('email')}
+                  className="text-foreground-muted hover:text-foreground transition-colors"
+                >
+                  Change email
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={loading}
+                  className="text-msu-green hover:text-msu-green-light transition-colors font-semibold"
+                >
+                  Resend code
+                </button>
+              </div>
+            </form>
+          )}
 
           <div className="mt-8 text-center">
             <p className="text-sm text-foreground-muted">

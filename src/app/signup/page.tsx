@@ -3,78 +3,117 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+
+type Step = 'email' | 'verify'
 
 export default function SignupPage() {
+  const [step, setStep] = useState<Step>('email')
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
   const [fullName, setFullName] = useState('')
+  const [code, setCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
-  const handleSignup = async (e: React.FormEvent) => {
+  const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     setLoading(true)
 
-    if (!email || !password || !fullName) {
+    if (!email || !fullName) {
       setError('Please fill in all fields')
       setLoading(false)
       return
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match')
+    if (!email.endsWith('@msu.edu')) {
+      setError('Please use your @msu.edu email address')
       setLoading(false)
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters')
-      setLoading(false)
-      return
-    }
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
 
-    // Sign up the user
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
-        },
-      },
-    })
+      const data = await res.json()
 
-    if (signUpError) {
-      setError(signUpError.message)
-      setLoading(false)
-      return
-    }
-
-    if (data.user) {
-      // Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          email: email,
-          full_name: fullName,
-          interests: [],
-          looking_for: [],
-        })
-
-      if (profileError && !profileError.message.includes('duplicate')) {
-        console.error('Profile creation error:', profileError)
+      if (!res.ok) {
+        setError(data.error || 'Failed to send code')
+        setLoading(false)
+        return
       }
 
-      // Redirect to onboarding
-      router.push('/onboarding')
-      router.refresh()
+      // Store full name in session storage for after verification
+      sessionStorage.setItem('signup_name', fullName)
+      setStep('verify')
+    } catch {
+      setError('Something went wrong. Please try again.')
     }
+
+    setLoading(false)
+  }
+
+  const handleVerifyCode = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    if (!code || code.length !== 6) {
+      setError('Please enter the 6-digit code')
+      setLoading(false)
+      return
+    }
+
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Invalid code')
+        setLoading(false)
+        return
+      }
+
+      // Redirect to the magic link URL which will set the session
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  const handleResendCode = async () => {
+    setError('')
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to resend code')
+      }
+    } catch {
+      setError('Something went wrong. Please try again.')
+    }
+
+    setLoading(false)
   }
 
   return (
@@ -89,7 +128,7 @@ export default function SignupPage() {
           <h1 className="text-3xl font-black text-prestige-gradient tracking-tighter">SpartanFinder</h1>
         </Link>
         <p className="mt-2 text-center text-sm font-bold text-foreground-subtle uppercase tracking-widest">
-          Create your account
+          {step === 'email' ? 'Create your account' : 'Enter verification code'}
         </p>
       </div>
 
@@ -102,75 +141,104 @@ export default function SignupPage() {
             </div>
           )}
 
-          <form onSubmit={handleSignup} className="space-y-5">
-            <div className="space-y-2">
-              <label htmlFor="fullName" className="block text-xs font-black text-foreground-subtle uppercase tracking-widest ml-1">
-                Full Name
-              </label>
-              <input
-                id="fullName"
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="input-prestige"
-                placeholder="Your full name"
-              />
-            </div>
+          {step === 'email' ? (
+            <form onSubmit={handleSendCode} className="space-y-5">
+              <div className="space-y-2">
+                <label htmlFor="fullName" className="block text-xs font-black text-foreground-subtle uppercase tracking-widest ml-1">
+                  Full Name
+                </label>
+                <input
+                  id="fullName"
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="input-prestige"
+                  placeholder="Your full name"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <label htmlFor="email" className="block text-xs font-black text-foreground-subtle uppercase tracking-widest ml-1">
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input-prestige"
-                placeholder="spartan@msu.edu"
-              />
-            </div>
+              <div className="space-y-2">
+                <label htmlFor="email" className="block text-xs font-black text-foreground-subtle uppercase tracking-widest ml-1">
+                  MSU Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-prestige"
+                  placeholder="spartan@msu.edu"
+                />
+                <p className="text-xs text-foreground-subtle ml-1">
+                  We'll send a verification code to this email
+                </p>
+              </div>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-xs font-black text-foreground-subtle uppercase tracking-widest ml-1">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="input-prestige"
-                placeholder="At least 6 characters"
-              />
-            </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full btn-prestige !py-4 shadow-xl disabled:opacity-50 mt-6"
+              >
+                {loading ? 'Sending code...' : 'Send Verification Code'}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyCode} className="space-y-5">
+              <div className="text-center mb-6">
+                <p className="text-foreground-muted text-sm">
+                  We sent a code to
+                </p>
+                <p className="text-foreground font-semibold">{email}</p>
+              </div>
 
-            <div className="space-y-2">
-              <label htmlFor="confirmPassword" className="block text-xs font-black text-foreground-subtle uppercase tracking-widest ml-1">
-                Confirm Password
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="input-prestige"
-                placeholder="Confirm your password"
-              />
-            </div>
+              <div className="space-y-2">
+                <label htmlFor="code" className="block text-xs font-black text-foreground-subtle uppercase tracking-widest ml-1">
+                  Verification Code
+                </label>
+                <input
+                  id="code"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  required
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  className="input-prestige text-center text-2xl tracking-[0.5em] font-mono"
+                  placeholder="000000"
+                  autoFocus
+                />
+              </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn-prestige !py-4 shadow-xl disabled:opacity-50 mt-6"
-            >
-              {loading ? 'Creating account...' : 'Sign Up'}
-            </button>
-          </form>
+              <button
+                type="submit"
+                disabled={loading || code.length !== 6}
+                className="w-full btn-prestige !py-4 shadow-xl disabled:opacity-50 mt-6"
+              >
+                {loading ? 'Verifying...' : 'Verify & Create Account'}
+              </button>
+
+              <div className="flex items-center justify-between text-sm">
+                <button
+                  type="button"
+                  onClick={() => setStep('email')}
+                  className="text-foreground-muted hover:text-foreground transition-colors"
+                >
+                  Change email
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={loading}
+                  className="text-msu-green hover:text-msu-green-light transition-colors font-semibold"
+                >
+                  Resend code
+                </button>
+              </div>
+            </form>
+          )}
 
           <div className="mt-8 text-center">
             <p className="text-sm text-foreground-muted">
